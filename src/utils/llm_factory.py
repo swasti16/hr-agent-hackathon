@@ -41,13 +41,6 @@ def get_judge_llm():
         request_timeout=900.0
     )
 
-# def get_judge_llm():
-#     return ChatGroq(
-#         api_key=settings.GROQ_API_KEY,
-#         model=settings.GROQ_JUDGE_MODEL,
-#         temperature=0.0
-#     )
-
 
 def get_embeddings():
     """
@@ -68,7 +61,10 @@ def get_vector_store(collection_name: str | None = None,
     Returns ChromaDB vector store with HuggingFace embeddings.
     """
     from langchain_chroma import Chroma
-
+    if not collection_name:  # handles both None and empty string
+        raise ValueError("Must provide collection_name to get_vector_store()")
+    if not persist_directory:  # handles both None and empty string
+        raise ValueError("Must provide persist_directory to get_vector_store()")
     return Chroma(
         collection_name=collection_name or settings.COLLECTION_NAME,
         embedding_function=get_embeddings(),

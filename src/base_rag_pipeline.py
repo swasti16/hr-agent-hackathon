@@ -12,17 +12,11 @@ Pipeline:
   5. Query: retrieve top-k chunks + generate answer via LLM
 """
 
-import os
-import sys
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-
-# Allow imports from project root
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from config.settings import settings
 from src.utils.llm_factory import get_llm, get_vector_store
 
@@ -36,7 +30,7 @@ class RagPipeline:
     """
 
     def __init__(self, docs_dir: str | None = None,
-                 collection_name: str = settings.COLLECTION_NAME,
+                 collection_name: str | None = None,
                  system_prompt: str | None = None,
                  persist_dir: str = settings.CHROMA_PERSIST_DIR):
         self.docs_dir = docs_dir
