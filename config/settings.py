@@ -34,7 +34,6 @@ class Settings:
     CHROMA_PERSIST_DIR: str = os.getenv(
         "CHROMA_PERSIST_DIR", "./data/chromadb"
     )
-    COLLECTION_NAME: str = "test_collection"
 
     # ======== RAG Settings ==================================
     CHUNK_SIZE: int = 500
@@ -48,7 +47,6 @@ class Settings:
 
     # ======== Safety Testing ==================================
     CONFIDENCE_THRESHOLD: float = 0.70
-
 
     def validate(self) -> None:
         """Validate required settings are present."""

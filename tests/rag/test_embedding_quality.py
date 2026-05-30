@@ -9,13 +9,9 @@ indexing and querying phases.
 Run with: pytest rag-testing/embedding_tests.py -v
 """
 
-import os
-import sys
 import pytest
 import numpy as np
 from sentence_transformers import SentenceTransformer, util
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from config.settings import settings
 
 

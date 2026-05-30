@@ -22,7 +22,6 @@ from ragas.llms import LangchainLLMWrapper
 from ragas.embeddings import LangchainEmbeddingsWrapper
 from ragas.run_config import RunConfig
 import logging
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src.utils.llm_factory import get_judge_llm, get_embeddings
 from src.hr_rag_pipeline import HRRagPipeline
 from config.settings import settings

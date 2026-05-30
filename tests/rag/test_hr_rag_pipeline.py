@@ -1,6 +1,3 @@
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src.hr_rag_pipeline import HRRagPipeline
 import pytest
 
@@ -21,7 +18,7 @@ def test_no_duplicate_chunks(indexed_pipeline):
     count_after_first_index = indexed_pipeline.get_chunk_count()
 
     # Re-initialize and re-index to test for duplicates
-    indexed_pipeline.load_and_index()
+    indexed_pipeline.load_and_index(force_reindex=True)
     count_after_second_index = indexed_pipeline.get_chunk_count()
 
     assert count_after_first_index == count_after_second_index, (

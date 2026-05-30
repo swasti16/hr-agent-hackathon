@@ -12,15 +12,11 @@ Tests:
 
 """
 
-import os
-import sys
 import pytest
 import tempfile
 import shutil
-from langchain_chroma import Chroma
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from src.utils.llm_factory import get_embeddings
+from src.utils.llm_factory import get_vector_store
 from src.base_rag_pipeline import RagPipeline
 
 # ======== Fixtures ==================================
@@ -36,11 +32,8 @@ def temp_db_dir():
 @pytest.fixture
 def empty_vector_store(temp_db_dir):
     """Create an empty vector store for testing."""
-    return Chroma(
-        collection_name="test_collection",
-        embedding_function=get_embeddings(),
-        persist_directory=temp_db_dir
-    )
+    return get_vector_store(collection_name="test_collection",
+                            persist_directory=temp_db_dir)
 
 
 # ======== Indexing Tests ==================================

@@ -105,11 +105,14 @@ source venv/bin/activate   # Mac/Linux
 # 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. Configure API keys
+# 4. Install project as package
+pip install -e .
+
+# 5. Configure API keys
 cp .env.example .env
 # Edit .env and add your GROQ_API_KEY
 
-# 5. Verify setup
+# 6. Verify setup
 python environment_sanity_test.py
 ```
 
