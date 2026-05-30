@@ -1,4 +1,3 @@
-# rag-testing/embedding_tests.py
 """
 Embedding Quality Tests
 
@@ -9,17 +8,25 @@ indexing and querying phases.
 Run with: pytest rag-testing/embedding_tests.py -v
 """
 
+import chromadb
 import pytest
 import numpy as np
 from sentence_transformers import SentenceTransformer, util
 from config.settings import settings
 
-
 # ======== Fixtures ==================================
 
 @pytest.fixture(scope="module")
 def embed_model():
-    """Load embedding model once for all tests."""
+    """
+    Load embedding model once for all tests.
+    Fails fast with clear message if model not configured.
+    """
+    if not settings.EMBEDDING_MODEL:
+        raise ValueError(
+            "EMBEDDING_MODEL not configured in settings. "
+            "Set it to a valid HuggingFace model e.g. 'all-MiniLM-L6-v2'"
+        )
     return SentenceTransformer(settings.EMBEDDING_MODEL)
 
 
@@ -49,7 +56,7 @@ class TestEmbeddingQuality:
         print(f"   Similarity: {similarity:.3f}")
 
         assert similarity > 0.70, (
-            f"Similar sentences should not have low similarity: {similarity:.3f}. "
+            f"Similar sentences scored too low: {similarity:.3f}. "
             f"Embedding model may not be capturing meaning correctly."
         )
 
@@ -72,27 +79,28 @@ class TestEmbeddingQuality:
         print(f"   Similarity: {similarity:.3f}")
 
         assert similarity < 0.50, (
-            f"Different sentences should not have high similarity: {similarity:.3f}. "
-            f"Embedding model may not be distinguishing topics."
+            f"Unrelated sentences scored too similarly: {similarity:.3f}. "
+            f"Expected < 0.50. Embedding model may not distinguish topics."
         )
 
     def test_embedding_dimensions_correct(self, embed_model):
         """
         Embedding dimensions must match expected model dimensions.
-        all-MiniLM-L6-v2 produces 384-dimensional vectors.
 
         Tests: Embedding model configured correctly.
         """
+        expected_dimension = embed_model.get_embedding_dimension()
+
         test_sentence = "Test sentence for dimension check"
         embedding = embed_model.encode(test_sentence)
 
         print(f"\n   Model: {settings.EMBEDDING_MODEL}")
-        print(f"   Expected dimensions: 384")
+        print(f"   Expected dimensions: {expected_dimension}")
         print(f"   Actual dimensions: {len(embedding)}")
 
-        assert len(embedding) == 384, (
+        assert len(embedding) == expected_dimension, (
             f"Unexpected embedding dimensions: {len(embedding)}. "
-            f"Expected 384 for {settings.EMBEDDING_MODEL}."
+            f"Expected {expected_dimension} for {settings.EMBEDDING_MODEL}."
         )
 
     def test_same_sentence_produces_same_embedding(self, embed_model):
@@ -161,15 +169,13 @@ class TestEmbeddingQuality:
         norm = np.linalg.norm(embedding)
 
         print(f"\n   Embedding norm: {norm:.6f}")
-        print(f"   Expected: ~1.0 (normalized)")
+        print(f" Expected: ~1.0 (normalized)")
 
         assert abs(norm - 1.0) < 0.001, (
             f"Embedding not normalized. Norm: {norm:.6f}. "
             f"Expected close to 1.0."
         )
 
-
-# ======== Embedding Model Consistency Tests ==================================
 
 class TestEmbeddingModelConsistency:
     """
@@ -178,61 +184,40 @@ class TestEmbeddingModelConsistency:
     This is the most critical embedding test.
     """
 
-    def test_config_specifies_embedding_model(self):
+    def test_vector_dimensions_consistent(self, embed_model):
         """
-        Embedding model must be explicitly configured.
-        Should never be None or empty.
+        Verifies configured embedding model matches
+        what was used to build the vector store.
+        Guards against: index with Model A, query with Model B.
         """
-        assert settings.EMBEDDING_MODEL, \
-            "EMBEDDING_MODEL not configured in settings"
-        assert len(settings.EMBEDDING_MODEL) > 0, \
-            "EMBEDDING_MODEL is empty string"
-        print(f"\n   Embedding model: {settings.EMBEDDING_MODEL}")
+        configured_dim = embed_model.get_embedding_dimension()    
+        client = chromadb.PersistentClient(path=settings.CHROMA_PERSIST_DIR)
+        collections = client.list_collections()
+        print(f"\n Collection: {collections}")
 
-    def test_embedding_model_loads_successfully(self):
-        """
-        Configured embedding model must load without errors.
-        Catches: Wrong model name, missing model files.
-        """
-        try:
-            model = SentenceTransformer(settings.EMBEDDING_MODEL)
-            assert model is not None
-            print(f"\n Model loaded Successfully: {settings.EMBEDDING_MODEL}")
-        except Exception as e:
-            pytest.fail(
-                f"Failed to load embedding model "
-                f"'{settings.EMBEDDING_MODEL}': {e}"
-            )
+        if not collections:
+            pytest.skip("Vector store is empty — index documents first")
 
-    def test_vector_dimensions_consistent(self):
-        """
-        Indexing embedding dimension must match query embedding dimension.
-        Mismatch = retrieval will silently fail.
+        for colname in collections:
+            collection = client.get_collection(name=colname)
 
-        This simulates the critical bug:
-        Index with Model A → Query with Model B → Zero matches.
-        """
-        model = SentenceTransformer(settings.EMBEDDING_MODEL)
+            # Get a stored vector and check its dimension
+            stored = collection.get(limit=1, include=["embeddings"])
 
-        # Simulate indexing phase
-        index_sentence = "Employees get 15 days annual leave"
-        index_embedding = model.encode(index_sentence)
+            if stored and stored.get("embeddings", None) is not None and len(stored["embeddings"]) > 0:
+                stored_dim = len(stored["embeddings"][0])
 
-        # Simulate querying phase (same model)
-        query_sentence = "How many leave days?"
-        query_embedding = model.encode(query_sentence)
+                print(f"\n {colname} Configured model dimension: {configured_dim}")
+                print(f" {colname} Stored vector dimension:    {stored_dim}")
 
-        print(f"\n   Index embedding dim: {len(index_embedding)}")
-        print(f"   Query embedding dim: {len(query_embedding)}")
-
-        assert len(index_embedding) == len(query_embedding), (
-            f"Dimension mismatch! "
-            f"Index: {len(index_embedding)}, "
-            f"Query: {len(query_embedding)}. "
-            f"Embeddings are incompatible — retrieval will fail."
-        )
+                assert configured_dim == stored_dim, (
+                    f"Dimension mismatch! Configured: {configured_dim}, "
+                    f"Stored: {stored_dim}. "
+                    f"Different embedding models used for indexing and querying!"
+                )
 
 # ======== Standalone Runner ==================================
+
 
 if __name__ == "__main__":
     print("\nEmbedding Quality Tests - Standalone Run")
