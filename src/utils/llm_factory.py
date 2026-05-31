@@ -65,11 +65,10 @@ def get_vector_store(collection_name: str | None = None,
         raise ValueError("Must provide collection_name to get_vector_store()")
     if not persist_directory:  # handles both None and empty string
         raise ValueError("Must provide persist_directory to get_vector_store()")
-    return Chroma(
-        collection_name=collection_name or settings.COLLECTION_NAME,
-        embedding_function=get_embeddings(),
-        persist_directory=persist_directory or settings.CHROMA_PERSIST_DIR
-    )
+    return Chroma(collection_name=collection_name,
+                  embedding_function=get_embeddings(),
+                  persist_directory=persist_directory
+                  )
 
 
 def get_llm_provider_name() -> str:

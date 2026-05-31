@@ -1,6 +1,6 @@
 COLLECTION_NAME = "hr_documents"
 DOCS_DIR = "./data/hr_documents"
-AGENT_NAME = "HR Assistant"
+
 SYSTEM_PROMPT = """You are an HR assistant for ABC Corporation.
 Your job is to answer employee questions about HR policies accurately.
 

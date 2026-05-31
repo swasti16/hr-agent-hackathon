@@ -3,24 +3,31 @@ import time
 import asyncio
 from datetime import datetime
 from langchain_groq import ChatGroq
+import logging
+logger = logging.getLogger(__name__)
+
+_groq_semaphore = asyncio.Semaphore(1)
 
 
 class RateLimitedChatGroq(ChatGroq):
     """
-    Directly inherits from ChatGroq to guarantee all generation 
+    Directly inherits from ChatGroq to guarantee all generation
     entry points (like RAGAS calling .agenerate_prompt()) hit our rate limiter.
     """
     delay_seconds: float = 4.0
 
     def _extract_wait_time(self, error_msg: str) -> float:
-        """Parses Groq's token error message to extract backoff seconds."""
-        match = re.search(r"Please try again in (?:(\d+)m)?([\d.]+)s", error_msg)
-        print(f"Extracted wait time from error message: {match.groups() if match else 'No match found'}")
+        match = re.search(
+            r"Please try again in (?:(\d+)m)?([\d.]+)s",
+            error_msg
+        )
         if match:
             minutes = float(match.group(1)) if match.group(1) else 0.0
             seconds = float(match.group(2))
-            print(f"Parsed wait time - {(minutes * 60) + seconds + 3}")
-            return (minutes * 60) + seconds + 3  # Add a safe extra buffer
+            wait = (minutes * 60) + seconds + 3
+            logger.info(f"Rate limit backoff: {wait:.1f}s")
+            return wait
+        logger.warning("Could not parse wait time from error — defaulting to 60s")
         return 60.0
 
     def _combine_llm_outputs(self, llm_outputs: list) -> dict:
@@ -32,7 +39,7 @@ class RateLimitedChatGroq(ChatGroq):
         for output in llm_outputs:
             if output is None:
                 continue
-            
+
             # Make a shallow copy to safely scrub the nested dicts
             output_copy = dict(output)
             if "token_usage" in output_copy and isinstance(output_copy["token_usage"], dict):
@@ -42,7 +49,7 @@ class RateLimitedChatGroq(ChatGroq):
                 for k in keys_to_drop:
                     del usage_copy[k]
                 output_copy["token_usage"] = usage_copy
-            
+
             cleaned_outputs.append(output_copy)
         return super()._combine_llm_outputs(cleaned_outputs)
 
@@ -73,22 +80,23 @@ class RateLimitedChatGroq(ChatGroq):
             f"TPM limit — backing off {wait_time:.1f}s..."
         )
         return wait_time
-    
-    async def _agenerate(self, *args, **kwargs):
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        print(f"[{timestamp}] [Async Judge] Pacing delay: {self.delay_seconds}s...")
-        await asyncio.sleep(self.delay_seconds)
 
-        while True:
-            try:
-                return await super()._agenerate(*args, **kwargs)
-            except Exception as e:
-                error_str = str(e)
-                if "429" in error_str or "rate_limit_exceeded" in error_str:
-                    wait_time = self._handle_rate_limit(error_str)
-                    await asyncio.sleep(wait_time)
-                    continue
-                raise
+    async def _agenerate(self, *args, **kwargs):
+        async with _groq_semaphore:
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            print(f"[{timestamp}] [Async Judge] Pacing delay: {self.delay_seconds}s...")
+            await asyncio.sleep(self.delay_seconds)
+
+            while True:
+                try:
+                    return await super()._agenerate(*args, **kwargs)
+                except Exception as e:
+                    error_str = str(e)
+                    if "429" in error_str or "rate_limit_exceeded" in error_str:
+                        wait_time = self._handle_rate_limit(error_str)
+                        await asyncio.sleep(wait_time)
+                        continue
+                    raise
 
     def _generate(self, *args, **kwargs):
         timestamp = datetime.now().strftime("%H:%M:%S")

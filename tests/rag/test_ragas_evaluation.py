@@ -8,8 +8,6 @@ Tests the RAG pipeline quality using 3 core RAGAS metrics:
 
 """
 
-import os
-import sys
 import pytest
 from datasets import Dataset
 from ragas import evaluate
@@ -72,6 +70,7 @@ GOLDEN_DATASET = [
 
 # ======== Pipeline Setup ==================================
 
+
 @pytest.fixture(scope="module")
 def pipeline():
     """Initialize RAG pipeline once for all tests."""
@@ -90,16 +89,19 @@ def configure_ragas_judge():
     context_precision.llm = judge_llm
     answer_relevancy.llm = judge_llm
     answer_relevancy.embeddings = judge_embeddings
-    
     yield
 
+
+# NOTE: autouse=True applies to all classes in this module.
+# If adding a second test class, scope this fixture inside
+# the class or make it non-autouse.
 @pytest.fixture(autouse=True, scope="class")
 def setup_scores(request, pipeline):
     """
     Runs evaluate() ONCE.
     All individual tests read from cached results.
     Zero extra API calls.
-    """       
+    """
     # ONE evaluate() call — all metrics together
     dataset = build_ragas_dataset(pipeline)
     run_config = RunConfig(timeout=900, max_workers=1, max_retries=3)
@@ -109,7 +111,7 @@ def setup_scores(request, pipeline):
         metrics=[faithfulness, context_precision, answer_relevancy],
         run_config=run_config
     )
-    
+
     # Store on class — all tests read from here
     request.cls.scores = {
         "faithfulness": results["faithfulness"],
@@ -161,20 +163,20 @@ class TestRagasMetrics:
     def test_faithfulness_score(self):
         score = self.scores["faithfulness"]
         print(f"\n   Faithfulness: {score:.4f} "
-            f"(threshold: {settings.MIN_FAITHFULNESS})")
+              f"(threshold: {settings.MIN_FAITHFULNESS})")
         assert score >= settings.MIN_FAITHFULNESS, \
             f"Faithfulness {score:.4f} < {settings.MIN_FAITHFULNESS}"
 
     def test_context_precision_score(self):
         score = self.scores["context_precision"]
         print(f"\n   Context Precision: {score:.4f} "
-            f"(threshold: {settings.MIN_CONTEXT_PRECISION})")
+              f"(threshold: {settings.MIN_CONTEXT_PRECISION})")
         assert score >= settings.MIN_CONTEXT_PRECISION, \
             f"Context Precision {score:.4f} < {settings.MIN_CONTEXT_PRECISION}"
 
     def test_answer_relevancy_score(self):
         score = self.scores["answer_relevancy"]
         print(f"\n   Answer Relevancy: {score:.4f} "
-            f"(threshold: {settings.MIN_ANSWER_RELEVANCE})")
+              f"(threshold: {settings.MIN_ANSWER_RELEVANCE})")
         assert score >= settings.MIN_ANSWER_RELEVANCE, \
             f"Answer Relevancy {score:.4f} < {settings.MIN_ANSWER_RELEVANCE}"

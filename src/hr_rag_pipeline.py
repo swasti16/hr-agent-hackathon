@@ -25,7 +25,7 @@ class HRRagPipeline(RagPipeline):
 # ======== Quick Test ==================================
 
 
-if __name__ == "__main__":   
+if __name__ == "__main__":
     print("\nHR RAG Pipeline — Quick Test")
     print("=" * 50)
 

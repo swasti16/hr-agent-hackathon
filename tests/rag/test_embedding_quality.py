@@ -16,6 +16,7 @@ from config.settings import settings
 
 # ======== Fixtures ==================================
 
+
 @pytest.fixture(scope="module")
 def embed_model():
     """
@@ -169,7 +170,7 @@ class TestEmbeddingQuality:
         norm = np.linalg.norm(embedding)
 
         print(f"\n   Embedding norm: {norm:.6f}")
-        print(f" Expected: ~1.0 (normalized)")
+        print(" Expected: ~1.0 (normalized)")
 
         assert abs(norm - 1.0) < 0.001, (
             f"Embedding not normalized. Norm: {norm:.6f}. "
@@ -190,7 +191,7 @@ class TestEmbeddingModelConsistency:
         what was used to build the vector store.
         Guards against: index with Model A, query with Model B.
         """
-        configured_dim = embed_model.get_embedding_dimension()    
+        configured_dim = embed_model.get_embedding_dimension()
         client = chromadb.PersistentClient(path=settings.CHROMA_PERSIST_DIR)
         collections = client.list_collections()
         print(f"\n Collection: {collections}")

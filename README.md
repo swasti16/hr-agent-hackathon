@@ -94,7 +94,7 @@ ai-testing-portfolio/
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/YOUR_USERNAME/ai-testing-portfolio.git
+git clone https://github.com/swasti16/ai-testing-portfolio.git
 cd ai-testing-portfolio
 
 # 2. Create virtual environment

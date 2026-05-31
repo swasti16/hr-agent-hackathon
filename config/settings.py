@@ -13,7 +13,7 @@ os.environ["CHROMA_TELEMETRY"] = "False"
 
 
 class Settings:
-    
+
     # ======== LLM Provider ==================================
     DEFAULT_LLM_PROVIDER: str = os.getenv(
         "DEFAULT_LLM_PROVIDER", "groq"
