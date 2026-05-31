@@ -61,12 +61,12 @@ class RagPipeline:
 
         chunks = self.split_into_chunks(documents)
         print(f"Split into {len(chunks)} chunks")
-        
+
         self.vector_store.add_documents(chunks)
         print(f"Indexed {len(chunks)} chunks into ChromaDB")
 
         return len(chunks)
-    
+
     def _setup_retriever_and_chain(self) -> None:
         """
         Always call this after vector_store changes.
@@ -79,7 +79,7 @@ class RagPipeline:
 
     def load_and_index(self, force_reindex=False) -> int:
         """
-        Load HR documents, chunk them, and index into ChromaDB.
+        Load documents, chunk them, and index into ChromaDB.
         Returns number of chunks indexed.
         """
         existing_count = self.get_chunk_count()
@@ -87,17 +87,16 @@ class RagPipeline:
         if not force_reindex and existing_count > 0:
             print("Loaded existing ChromaDB index")
             return existing_count
-        
         if existing_count > 0:
             print(f"Found {existing_count} existing chunks. "
-                f"Deleting for fresh indexing...")
+                  "Deleting for fresh indexing...")
         else:
             print("Fresh database. Starting indexing...")
         try:
             self.vector_store.delete_collection()
         except Exception as e:
             print(f"Warning: Could not delete existing collection. "
-                f"Proceeding with indexing. Error: {e}")
+                  f"Proceeding with indexing. Error: {e}")
         self.vector_store = get_vector_store(
             collection_name=self.collection_name,
             persist_directory=self.persist_dir)
@@ -183,7 +182,7 @@ class RagPipeline:
             return 0
         collection = self.vector_store._collection
         return collection.count()
-    
+
     def add_new_document(self, file_path: str) -> int:
         """
         Add a SINGLE new document without re-indexing everything.

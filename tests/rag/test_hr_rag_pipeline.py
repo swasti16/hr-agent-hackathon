@@ -2,7 +2,7 @@ from src.hr_rag_pipeline import HRRagPipeline
 import pytest
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def indexed_pipeline():
     """Load and index the HR documents once for this test session."""
     pipeline = HRRagPipeline()
@@ -46,5 +46,5 @@ def test_notice_period_sources(indexed_pipeline):
     # Log if irrelevant source appeared (warning not failure)
     if any("code_of_conduct" in s for s in sources):
         print("Warning: code_of_conduct.txt retrieved "
-            "for notice period query. "
-            "Consider reducing TOP_K or adding metadata filter.")
+              "for notice period query. "
+              "Consider reducing TOP_K or adding metadata filter.")

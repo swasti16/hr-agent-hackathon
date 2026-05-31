@@ -2,7 +2,6 @@
 Environment sanity check.
 Run this to verify all dependencies are correctly installed.
 """
-import sys
 import os
 from dotenv import load_dotenv
 from config.settings import settings
@@ -15,6 +14,7 @@ import pypdf
 
 load_dotenv()
 
+
 def check(name, fn):
     try:
         fn()
@@ -23,6 +23,8 @@ def check(name, fn):
     except Exception as e:
         print(f"Fail {name}: {e}")
         return False
+
+
 def test_groq():
     client = Groq(api_key=os.getenv("GROQ_API_KEY"))
     r = client.chat.completions.create(
@@ -33,10 +35,12 @@ def test_groq():
     )
     assert r.choices[0].message.content is not None
 
+
 def test_embeddings():
     model = SentenceTransformer(settings.EMBEDDING_MODEL)
     emb = model.encode("test")
     assert len(emb) == 384
+
 
 def test_chromadb():
     client = chromadb.Client()
@@ -44,14 +48,18 @@ def test_chromadb():
     assert col is not None
     client.delete_collection("sanity_test")
 
+
 def test_ragas():
     assert faithfulness is not None
+
 
 def test_langchain():
     assert ChatGroq is not None
 
+
 def test_pypdf():
     assert pypdf is not None
+
 
 def test_config():
     assert settings.GROQ_API_KEY is not None, \
@@ -75,7 +83,6 @@ if __name__ == "__main__":
 
     print("\nConfiguration:")
     results.append(check("Config/Settings", test_config))
-
 
     print("\n" + "=" * 45)
     passed = sum(results)
