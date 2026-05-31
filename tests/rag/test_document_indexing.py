@@ -211,16 +211,16 @@ class TestRagPipelineIndexing:
             collection_name="test_hr",
             persist_dir=temp_db_dir
         )
+        self.pipeline.load_and_index(force_reindex=True)
 
     def test_hr_documents_indexed_successfully(self):
         """HR documents directory must index without errors."""
-        chunk_count = self.pipeline.load_and_index(force_reindex=True)
+        chunk_count = self.pipeline.get_chunk_count()
         print(f"\n   Indexed {chunk_count} chunks from HR documents")
         assert chunk_count > 0, "No chunks were indexed from HR documents"
 
     def test_leave_policy_content_indexed(self):
         """Leave policy content must be findable after indexing."""
-        self.pipeline.load_and_index(force_reindex=True)
         result = self.pipeline.ask("How many annual leave days?")
 
         print(f"\n   Answer: {result['answer'][:100]}...")
@@ -235,7 +235,6 @@ class TestRagPipelineIndexing:
 
     def test_chunk_count_after_hr_indexing(self):
         """After indexing HR docs, chunk count should be reasonable."""
-        self.pipeline.load_and_index(force_reindex=True)
         count = self.pipeline.get_chunk_count()
 
         print(f"\n   Total HR chunks: {count}")
