@@ -40,3 +40,6 @@ Thumbs.db
 # pip install -e . creates these
 *.egg-info/
 ai_testing_portfolio.egg-info/
+
+# Gradio
+.gradio/
