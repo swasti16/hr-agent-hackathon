@@ -1,9 +1,32 @@
 import gradio as gr
 from src.hr_rag_pipeline import HRRagPipeline
+from pathlib import Path
+import threading
+import argparse
 
-# Initialize once at startup
 pipeline = HRRagPipeline()
-pipeline.load_and_index()
+is_ready = False
+
+
+def _parse_args():
+    parser = argparse.ArgumentParser(prog='HR Assistant',
+                                     description='Answers questions about HR policies.')
+    parser.add_argument('--force_reindex', '-f',action='store_true',
+                        help='Force reload and re-indexing of HR documents')
+    args, _ = parser.parse_known_args()
+    return args
+
+
+args = _parse_args()
+
+
+def initialize():
+    global is_ready
+    pipeline.load_and_index(force_reindex=args.force_reindex)
+    is_ready = True
+
+
+threading.Thread(target=initialize, daemon=True).start()
 
 custom_css = """
 .chat-container { border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; background: #fafafa; }
@@ -18,17 +41,13 @@ custom_css = """
 
 def chat(message: str, history: list) -> tuple[str, str]:
     """
-    Returns (formatted_answer, chunks_text)
-    formatted_answer → shown in chat
-    chunks_text      → shown in accordion
+    Returns (formatted_answer, chunks_text).
+    Passes history to pipeline for multi-turn context resolution.
     """
-    result = pipeline.ask(message)
+    result = pipeline.ask_with_history(message, history)
 
     # Format answer with sources
-    sources = set(
-        s.split("\\")[-1].split("/")[-1]  # filename only
-        for s in result["sources"]
-    )
+    sources = set(Path(s).name for s in result["sources"])
     sources_str = ", ".join(sorted(sources))
 
     answer = f"{result['answer']}\n\n**Sources:** {sources_str}"
@@ -39,6 +58,33 @@ def chat(message: str, history: list) -> tuple[str, str]:
         chunks_text += f"**Chunk {i}:**\n{chunk}\n\n---\n"
 
     return answer, chunks_text
+
+
+def respond(message: str, history: list) -> tuple[list, str, str]:
+    if history is None:
+        history = []
+
+    if not message.strip():
+        return history, "", ""
+
+    if not is_ready:
+        history.append({"role": "user", "content": message})
+        history.append({"role": "assistant",
+                        "content": "Still loading HR documents... please try again in a moment."
+                        })
+        return history, "", ""
+    history.append({"role": "user", "content": message})
+    try:
+        bot_response, chunks = chat(message, history)
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        history.append({"role": "assistant",
+                        "content": "⚠️ Sorry, I encountered an error. Please try again."
+                        })
+        return history, "", f"**Error:** {str(e)}"
+
+    history.append({"role": "assistant", "content": bot_response})
+    return history, "", chunks
 
 
 with gr.Blocks(title="HR Assistant", css=custom_css) as demo:
@@ -68,21 +114,6 @@ with gr.Blocks(title="HR Assistant", css=custom_css) as demo:
                     label="Retrieved Chunks",
                     elem_classes="fixed-height-debug"
                 )
-
-    # State to store chunks
-    chunks_state = gr.State("")
-
-    def respond(message, history):
-        if history is None:
-            history = []
-        if not message.strip():
-            return history, "", ""
-        history.append({"role": "user", "content": message})
-
-        bot_response, chunks = chat(message, history)
-        history.append({"role": "assistant", "content": bot_response})
-        # history.append((message, answer))
-        return history, "", chunks
 
     send_btn.click(
         respond,

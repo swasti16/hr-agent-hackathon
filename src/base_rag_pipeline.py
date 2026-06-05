@@ -140,28 +140,39 @@ class RagPipeline:
             | StrOutputParser()
         )
 
-    def ask(self, question: str) -> dict:
+    def ask_with_history(self, question: str, history: list[dict]) -> dict:
         """
-        Ask a question and get answer with retrieved context.
+        Ask a question with conversation history for context.
+        History format: [{"role": "user/assistant", "content": "..."}]
 
-        Returns:
-            {
-                "question": str,
-                "answer": str,
-                "contexts": list[str],
-                "sources": list[str]
-            }
+        Uses history to resolve pronouns and follow-up questions.
+        Does NOT store history — caller manages state.
         """
         if not self.chain:
             raise RuntimeError(
                 "Pipeline chain not built. "
-                "This should not happen - check __init__."
+                "This should not happen — check __init__."
             )
 
-        # Get answer
-        answer = self.chain.invoke(question)
+        # Build conversation context from history
+        conversation_context = ""
+        if history:
+            conversation_context = "\n\nConversation so far:\n"
+            # Only include last 6 messages (3 turns) to stay within token limits
+            recent_history = history[-6:]
+            for msg in recent_history:
+                conversation_context += f"{msg['role']}: {msg['content']}\n"
+            conversation_context += "\nNow answer the following question using the above context if relevant:"
 
-        # Get retrieved chunks (for RAGAS evaluation)
+        # Combine history context with current question
+        enriched_question = f"{conversation_context}\n{question}" \
+            if conversation_context else question
+
+        # Get answer using enriched question for retrieval
+        answer = self.chain.invoke(enriched_question)
+
+        # Get retrieved chunks using ORIGINAL question for relevance
+        # (enriched question has extra text that confuses retrieval)
         retrieved_docs = self.retriever.invoke(question)
         contexts = [doc.page_content for doc in retrieved_docs]
         sources = [
@@ -175,6 +186,20 @@ class RagPipeline:
             "contexts": contexts,
             "sources": sources
         }
+
+    def ask(self, question: str) -> dict:
+        """
+        Ask a question and get answer with retrieved context, without history.
+
+        Returns:
+            {
+                "question": str,
+                "answer": str,
+                "contexts": list[str],
+                "sources": list[str]
+            }
+        """
+        return self.ask_with_history(question, history=[])
 
     def get_chunk_count(self) -> int:
         """Returns total number of chunks in vector store."""

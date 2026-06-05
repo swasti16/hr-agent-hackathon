@@ -116,6 +116,21 @@ cp .env.example .env
 python environment_sanity_test.py
 ```
 
+## Running the HR Assistant
+
+### Normal startup (uses existing index)
+```bash
+python app.py
+```
+### Force reindex (use when HR documents are updated)
+```bash
+python app.py --force_reindex
+```
+### or
+```bash
+python app.py -f
+```
+
 ## Environment Variables
 
 ```bash
