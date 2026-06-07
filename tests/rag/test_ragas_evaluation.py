@@ -80,6 +80,13 @@ def pipeline():
 
 
 @pytest.fixture(scope="module", autouse=True)
+# JUDGE MODEL: gpt-4o-mini (same as pipeline model)
+# Phi-4-mini-instruct was tested as an independent judge but produced nan
+# for answer_relevancy metric. Root cause: Phi-4 generates synthetic questions
+# in a format RAGAS 0.1.21 cannot parse during the embeddings similarity step.
+# Using same model as judge produces slightly inflated scores (model agreeing
+# with itself), but scores are stable and reproducible. A cross-model judge
+# is the production recommendation.
 def configure_ragas_judge():
     """Configure RAGAS to use Groq instead of OpenAI."""
     judge_llm = LangchainLLMWrapper(get_judge_llm())
@@ -104,7 +111,7 @@ def setup_scores(request, pipeline):
     """
     # ONE evaluate() call — all metrics together
     dataset = build_ragas_dataset(pipeline)
-    run_config = RunConfig(timeout=900, max_workers=1, max_retries=3)
+    run_config = RunConfig(timeout=120, max_workers=1, max_retries=1)
 
     results = evaluate(
         dataset=dataset,
