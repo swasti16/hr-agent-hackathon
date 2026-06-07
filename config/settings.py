@@ -1,5 +1,5 @@
 """
-Central configuration for AI Testing Portfolio.
+Central configuration for Project.
 All settings loaded from .env file.
 """
 import os
@@ -14,30 +14,21 @@ os.environ["CHROMA_TELEMETRY"] = "False"
 
 class Settings:
 
-    # ======== LLM Provider ==================================
-    DEFAULT_LLM_PROVIDER: str = os.getenv(
-        "DEFAULT_LLM_PROVIDER", "groq"
-    )
-
-    # ======== Groq Settings ==================================
-    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
-    GROQ_JUDGE_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
-    # GROQ_JUDGE_MODEL: str = "openai/gpt-oss-120b"
+    # ======== GitHub Models ==================================
+    GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")
+    GITHUB_MODEL: str = "gpt-4o-mini"
+    GITHUB_JUDGE_MODEL: str = "gpt-4o-mini"
+    GITHUB_BASE_URL: str = "https://models.inference.ai.azure.com"
 
     # ======== Embedding Settings ==================================
-    EMBEDDING_MODEL: str = os.getenv(
-        "EMBEDDING_MODEL", "all-MiniLM-L6-v2"
-    )
+    EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 
     # ======== ChromaDB Settings ==================================
-    CHROMA_PERSIST_DIR: str = os.getenv(
-        "CHROMA_PERSIST_DIR", "./data/chromadb"
-    )
+    CHROMA_PERSIST_DIR: str = os.getenv("CHROMA_PERSIST_DIR", "./data/chromadb")
 
     # ======== RAG Settings ==================================
     CHUNK_SIZE: int = 500
-    CHUNK_OVERLAP: int = CHUNK_SIZE // 10   # 10% overlap of CHUNK_SIZE
+    CHUNK_OVERLAP: int = CHUNK_SIZE // 10
     TOP_K: int = 5
 
     # ======== Evaluation Thresholds ==================================
@@ -49,10 +40,7 @@ class Settings:
     CONFIDENCE_THRESHOLD: float = 0.70
 
     def validate(self) -> None:
-        """Validate required settings are present."""
-        if self.DEFAULT_LLM_PROVIDER == "groq":
-            assert self.GROQ_API_KEY, \
-                "GROQ_API_KEY not set in .env"
+        assert self.GITHUB_TOKEN, "GITHUB_TOKEN not set in .env"
 
 
 settings = Settings()
