@@ -1,11 +1,7 @@
 import gradio as gr
-from src.hr_rag_pipeline import HRRagPipeline
-from pathlib import Path
 import threading
 import argparse
-
-pipeline = HRRagPipeline()
-is_ready = False
+from src.agent.hr_agent import HRAgent
 
 
 def _parse_args():
@@ -19,70 +15,89 @@ def _parse_args():
 
 args = _parse_args()
 
+agent = HRAgent()
+is_ready = False
+
 
 def initialize():
     global is_ready
-    pipeline.load_and_index(force_reindex=args.force_reindex)
+    agent.pipeline.load_and_index(force_reindex=args.force_reindex)
     is_ready = True
 
 
 threading.Thread(target=initialize, daemon=True).start()
 
 custom_css = """
-.chat-container { border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; background: #fafafa; }
-.fixed-height-debug { 
-    height: 460px; 
-    overflow-y: auto; 
-    padding: 12px; 
+.chat-container {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 15px;
+    background: #fafafa;
+}
+.fixed-height-debug {
+    height: 460px;
+    overflow-y: auto;
+    padding: 12px;
     border-radius: 6px;
 }
 """
 
 
-def chat(message: str, history: list) -> tuple[str, str]:
-    """
-    Returns (formatted_answer, chunks_text).
-    Passes history to pipeline for multi-turn context resolution.
-    """
-    result = pipeline.ask_with_history(message, history)
+def normalize_history(gradio_history: list) -> str:
+    """Extract last 6 messages from Gradio history as clean string."""
+    lines = []
+    for msg in gradio_history[-6:]:
+        role = msg.get("role", "")
+        content = msg.get("content", "")
+        if isinstance(content, list):  # Gradio nested format
+            content = " ".join(c.get("text", "") for c in content if isinstance(c, dict))
+        if role and content:
+            lines.append(f"{role}: {content}")
+    return "\n".join(lines)
 
-    # Format answer with sources
-    sources = set(Path(s).name for s in result["sources"])
-    sources_str = ", ".join(sorted(sources))
 
-    answer = f"{result['answer']}\n\n**Sources:** {sources_str}"
+def chat(message: str, history_str: str) -> tuple[str, str]:
+    result = agent.ask(message, history_str)
+
+    if result.get("shield_triggered"):
+        threat = result.get("threat_type", "UNKNOWN")
+        shield_badge = f"**🔴 SHIELD TRIGGERED — {threat}**\n\n"
+    else:
+        shield_badge = "**🟢 Shield: PASS**\n\n"
+
+    intents_str = " | ".join(result["intents"])
+    answer = f"{shield_badge}**Intent:** `{intents_str}`\n\n{result['answer']}"
 
     # Format chunks for debug accordion
-    chunks_text = ""
+    chunks_text = f"**Reasoning:** {result['reasoning']}\n\n---\n"
     for i, chunk in enumerate(result["contexts"], 1):
         chunks_text += f"**Chunk {i}:**\n{chunk}\n\n---\n"
-
     return answer, chunks_text
 
 
-def respond(message: str, history: list) -> tuple[list, str, str]:
-    if history is None:
-        history = []
-
+def respond(message: str, history: list = []) -> tuple[list, str, str]:
     if not message.strip():
         return history, "", ""
 
     if not is_ready:
         history.append({"role": "user", "content": message})
         history.append({"role": "assistant",
-                        "content": "Still loading HR documents... please try again in a moment."
-                        })
+                        "content": "Still loading HR documents... please try again in a moment."})
         return history, "", ""
-    history.append({"role": "user", "content": message})
+
+    # Normalize BEFORE appending current message (history = past only)
+    history_str = normalize_history(history)
+
     try:
-        bot_response, chunks = chat(message, history)
+        bot_response, chunks = chat(message, history_str)
     except Exception as e:
         print(f"Error occurred: {e}")
+        history.append({"role": "user", "content": message})
         history.append({"role": "assistant",
-                        "content": "⚠️ Sorry, I encountered an error. Please try again."
-                        })
+                        "content": "⚠️ Sorry, I encountered an error. Please try again."})
         return history, "", f"**Error:** {str(e)}"
 
+    history.append({"role": "user", "content": message})
     history.append({"role": "assistant", "content": bot_response})
     return history, "", chunks
 

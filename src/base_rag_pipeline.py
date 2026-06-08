@@ -12,7 +12,7 @@ Pipeline:
   5. Query: retrieve top-k chunks + generate answer via LLM
 """
 
-from langchain_community.document_loaders import DirectoryLoader, TextLoader
+from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -102,13 +102,9 @@ class RagPipeline:
             persist_directory=self.persist_dir)
         print(f"Loading documents from {self.docs_dir}...")
 
-        # Load all .txt files from hr_documents folder
-        loader = DirectoryLoader(
-            self.docs_dir,
-            glob="**/*.txt",
-            loader_cls=TextLoader,
-            loader_kwargs={"encoding": "utf-8"}
-        )
+        # Load all .pdf files from hr_documents folder
+        loader = DirectoryLoader(self.docs_dir, glob="**/*.pdf",
+                                 loader_cls=PyPDFLoader)
 
         chunks_len = self._index_documents(loader)
         self._setup_retriever_and_chain()
@@ -214,7 +210,7 @@ class RagPipeline:
         Production approach — efficient, no duplication.
         """
         # Load only the new document
-        loader = TextLoader(file_path, encoding="utf-8")
+        loader = PyPDFLoader(file_path, encoding="utf-8")
         chunks_len = self._index_documents(loader)
         self._setup_retriever_and_chain()
         return chunks_len
