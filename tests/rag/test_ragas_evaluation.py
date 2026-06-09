@@ -34,39 +34,81 @@ logging.getLogger("chromadb.telemetry").setLevel(logging.ERROR)
 # Ground truth comes directly from our HR documents.
 
 GOLDEN_DATASET = [
+    # =============== Leave Policy ===============
     {
-        "question": "How many annual leave days do employees get?",
-        "ground_truth": "Full-time employees are entitled to 15 days of annual leave per calendar year."
+        "question": "How many earned leaves do employees get per calendar year?",
+        "ground_truth": "Employees accrue 21 working days of earned leave per calendar year at a rate of 1.75 days per completed month."
     },
     {
-        "question": "What happens after the second disciplinary violation?",
-        "ground_truth": "The second violation results in a written warning with a performance improvement plan."
+        "question": "What is the maximum carry forward limit for earned leaves after the third year?",
+        "ground_truth": "After the third year, the maximum carry forward limit is 30 days, which is the absolute cap."
     },
     {
-        "question": "How many sick leave days are employees entitled to?",
-        "ground_truth": "Employees are entitled to 10 days of paid sick leave per year."
+        "question": "How long is maternity leave for an employee having her first child?",
+        "ground_truth": "For the first two surviving children, maternity leave entitlement is 26 weeks of paid leave with a maximum of 8 weeks before delivery."
     },
     {
-        "question": "How long is maternity leave?",
-        "ground_truth": "Female employees are entitled to 26 weeks of paid maternity leave."
+        "question": "What is the paternity leave entitlement and when must it be used?",
+        "ground_truth": "Male employees are entitled to 5 continuous paid working days of paternity leave, which must be availed within 3 months of birth or adoption and cannot be split."
     },
     {
-        "question": "What is the paternity leave entitlement?",
-        "ground_truth": "Male employees are entitled to 5 days of paid paternity leave within 30 days of the child's birth."
+        "question": "What are the rules for comp off accumulation and validity?",
+        "ground_truth": "Comp off maximum accumulation is 7 days per calendar year and must be used within 3 months of earning. It cannot be carried into the next calendar year, except comp offs earned in December which can be availed until January 31st."
     },
     {
-        "question": "What is the notice period for employees with less than 2 years of service?",
-        "ground_truth": "The notice period is 30 days for employees with less than 2 years of service."
+        "question": "Can an employee on notice period apply for advance leave?",
+        "ground_truth": "No. Employees serving their notice period are ineligible for advance leave."
+    },
+ 
+    # =============== Notice Period Policy ===============
+    {
+        "question": "What is the mandatory notice period at ABC Corporation?",
+        "ground_truth": "The mandatory notice period is 60 days for all employees and cannot be waived under any circumstances."
     },
     {
-        "question": "What is the notice period for employees with more than 2 years of service?",
-        "ground_truth": "The notice period is 60 days for employees with 2 or more years of service."
+        "question": "Can an employee use accumulated leave to shorten the notice period?",
+        "ground_truth": "No. Accumulated privilege leave cannot reduce or offset the mandatory notice period."
     },
     {
-        "question": "How far in advance should employees apply for leave?",
-        "ground_truth": "Employees must apply for leave at least 2 weeks in advance through the HR portal."
+        "question": "How is notice pay calculated if an employee does not serve the full notice period?",
+        "ground_truth": "Notice pay is calculated as Monthly Gross Salary multiplied by 12, divided by 365, multiplied by the number of days not served. Includable components are basic pay, HRA, flexi, conveyance allowance, and standard monthly payouts. PF, ESI, NPS, superannuation, gratuity, and insurance premiums are excluded."
+    },
+ 
+    # =============== Code of Conduct ===============
+    {
+        "question": "What disciplinary action is taken on the first violation of the code of conduct?",
+        "ground_truth": "The first violation results in a verbal warning documented in the employee file."
+    },
+    {
+        "question": "What happens in case of gross misconduct?",
+        "ground_truth": "Gross misconduct results in immediate termination of employment."
+    },
+    {
+        "question": "What are the rules regarding use of company devices?",
+        "ground_truth": "Company devices must be used for business purposes only. Personal use is prohibited and employees must not install unauthorized software on company devices."
+    },
+ 
+    # =============== Shift Allowance Policy ===============
+    {
+        "question": "What is the night shift allowance and what are the eligibility criteria?",
+        "ground_truth": "Night shift allowance is INR 450 per day for working a full 8 hours between 9 PM and 9 AM. Employees on the standard general shift from 8:30 AM to 5 PM are not eligible."
+    },
+    {
+        "question": "What is the payout for working on a company declared holiday?",
+        "ground_truth": "Employees who work a full 8-hour shift on a company declared holiday receive twice their regular wages for that day."
+    },
+ 
+    # =============== Cross-policy questions ===============
+    {
+        "question": "If an employee resigns and has not served full notice, and also has an approved advance leave during notice, how does it affect their exit?",
+        "ground_truth": "Employees on notice period are ineligible for advance leave. Additionally, if emergency medical leave is approved during notice, the final working day extends by the exact number of leaves used. If the employee fails to serve the full notice period, notice pay is calculated as Monthly Gross Salary multiplied by 12, divided by 365, multiplied by days not served."
+    },
+    {
+        "question": "Can an employee working a night shift on a company declared holiday claim both allowances?",
+        "ground_truth": "Yes. Concurrent night shift or odd shift allowances may also apply if the hours qualify, in addition to the company declared holiday payout of twice the regular wages."
     }
 ]
+
 
 # ======== Pipeline Setup ==================================
 

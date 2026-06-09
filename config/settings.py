@@ -16,8 +16,8 @@ class Settings:
 
     # ======== GitHub Models ==================================
     GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")
-    GITHUB_MODEL: str = "gpt-4o-mini"
-    GITHUB_JUDGE_MODEL: str = "gpt-4o-mini"
+    GITHUB_MODEL: str = "gpt-4o-mini"   # "gpt-4o-mini" or "gpt-4.1-mini" or "mistral-small-2503"
+    GITHUB_JUDGE_MODEL: str = "gpt-4.1-mini"   # "gpt-4o-mini" or "gpt-4.1-mini"
     GITHUB_BASE_URL: str = "https://models.inference.ai.azure.com"
 
     # ======== Embedding Settings ==================================
