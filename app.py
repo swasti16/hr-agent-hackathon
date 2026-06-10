@@ -329,7 +329,7 @@ def respond(message: str, history: list = []):
 
 
 # ================ Interface Assembly ================
-with gr.Blocks(title="Enterprise HR Copilot", css=custom_css, theme=gr.themes.Base()) as demo:
+with gr.Blocks(title="Enterprise HR Copilot") as demo:
 
     with gr.Row(elem_classes="app-header"):
         gr.HTML("""
@@ -422,4 +422,4 @@ with gr.Blocks(title="Enterprise HR Copilot", css=custom_css, theme=gr.themes.Ba
 
 
 if __name__ == "__main__":
-    demo.launch(share=True)
+    demo.launch(share=True, theme=gr.themes.Base(), css=custom_css)
