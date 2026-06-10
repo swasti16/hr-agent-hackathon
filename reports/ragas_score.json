@@ -1,0 +1,11 @@
+{
+  "recorded_at": "2025-06-10T05:34:00",
+  "judge_model": "gpt-4.1-mini",
+  "pipeline_model": "gpt-4o-mini",
+  "scores": {
+    "faithfulness": 0.916,
+    "context_precision": 0.942,
+    "answer_relevancy": 0.846
+  },
+  "dataset_size": 16
+}
