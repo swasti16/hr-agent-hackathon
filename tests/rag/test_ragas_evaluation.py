@@ -9,6 +9,9 @@ Tests the RAG pipeline quality using 3 core RAGAS metrics:
 """
 
 import pytest
+import datetime
+import os
+import json
 from datasets import Dataset
 from ragas import evaluate
 from ragas.metrics import (
@@ -110,6 +113,23 @@ GOLDEN_DATASET = [
 ]
 
 
+def create_ragas_score_json(faith_score, cprecision_score, relevancy_score):
+    project_folder = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    ragas_score_json = {
+        "recorded_at": datetime.now().isoformat(),
+        "judge_model": settings.GROQ_JUDGE_MODEL,
+        "pipeline_model": settings.GROQ_MODEL,
+        "scores": {
+            "faithfulness": faith_score,
+            "context_precision": cprecision_score,
+            "answer_relevancy": relevancy_score
+        },
+        "dataset_size": len(GOLDEN_DATASET)
+    }
+    with open(os.path.join(project_folder, "reports","ragas_score.json"), "w") as f:
+        json.dump(ragas_score_json, f, indent=2)
+
+
 # ======== Pipeline Setup ==================================
 
 
@@ -146,12 +166,6 @@ def configure_ragas_judge():
 # the class or make it non-autouse.
 @pytest.fixture(autouse=True, scope="class")
 def setup_scores(request, pipeline):
-    """
-    Runs evaluate() ONCE.
-    All individual tests read from cached results.
-    Zero extra API calls.
-    """
-    # ONE evaluate() call — all metrics together
     dataset = build_ragas_dataset(pipeline)
     run_config = RunConfig(timeout=120, max_workers=1, max_retries=1)
 
@@ -160,6 +174,11 @@ def setup_scores(request, pipeline):
         metrics=[faithfulness, context_precision, answer_relevancy],
         run_config=run_config
     )
+
+    # create ragas_score.json
+    create_ragas_score_json(results["faithfulness"],
+                            results["context_precision"],
+                            results["answer_relevancy"])
 
     # Store on class — all tests read from here
     request.cls.scores = {
@@ -209,6 +228,7 @@ class TestRagasMetrics:
     Each test checks one quality dimension.
     """
     # Individual tests read from cached scores — zero extra API calls
+
     def test_faithfulness_score(self):
         score = self.scores["faithfulness"]
         print(f"\n   Faithfulness: {score:.4f} "

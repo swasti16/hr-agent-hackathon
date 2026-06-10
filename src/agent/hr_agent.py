@@ -14,17 +14,13 @@ from src.agent.reasoning_chain import reason_and_respond
 from src.hr_rag_pipeline import HRRagPipeline
 from src.agent.safety_shield import run_shield
 
-# hr_agent.py  — add near top, after imports
-_session_call_count = 0
-
-
-def get_call_count():
-    return _session_call_count
-
-
-def increment_call_count():
-    global _session_call_count
-    _session_call_count += 1
+session_stats = {
+    "total_queries": -1,      # one per user message
+    "injections_blocked": 0,
+    "pii_blocked": 0,
+    "oos_redirected": 0,
+    "intent_counts": {}
+}
 
 
 class HRAgent:
@@ -52,7 +48,12 @@ class HRAgent:
         """
         # ======== Step 1: Safety Shield (fast, no LLM) ========
         shield = run_shield(query)
+        session_stats["total_queries"] += 1
         if not shield.is_safe:
+            if shield.threat_type == "INJECTION":
+                session_stats["injections_blocked"] += 1
+            elif shield.threat_type == "PII":
+                session_stats["pii_blocked"] += 1
             return {
                 "intents": ["BLOCKED"],
                 "answer": (
@@ -118,8 +119,10 @@ class HRAgent:
         # ======== Step 3: Intent Classification ========
         # Use sanitized_query so redacted PII doesn't confuse the classifier.
         intents = classify_intent(shield.sanitized_query, history_str)
-
+        for intent in intents:
+            session_stats["intent_counts"][intent] = session_stats["intent_counts"].get(intent, 0) + 1
         if "OUT_OF_SCOPE" in intents and len(intents) == 1:
+            session_stats["oos_redirected"] += 1
             return {
                 "answer": "I can only answer HR policy questions for ABC Corporation.",
                 "intents": intents,
