@@ -17,6 +17,7 @@ def get_llm(temperature: float = 0.1) -> ChatOpenAI:
 
 
 def get_judge_llm() -> ChatOpenAI:
+    print(f"Initializing judge LLM: {settings.GITHUB_JUDGE_MODEL}")
     return ChatOpenAI(
         model=settings.GITHUB_JUDGE_MODEL,
         api_key=settings.GITHUB_TOKEN,
