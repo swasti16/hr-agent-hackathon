@@ -1,7 +1,7 @@
 # 🤖 HR Policy Assistant — ABC Corporation
 ### Microsoft Agents League Hackathon · Reasoning Agents Track
 
-> A **multi-agent** HR policy assistant powered by **GitHub Models (gpt-4o-mini)** and **GitHub Copilot**, featuring a Foundry IQ-inspired RAG pipeline, multi-layer safety shields, intent-based routing, structured reasoning chains, and quantitative evaluation via RAGAS.
+> A **sequentially orchestrated agent pipeline** for HR policy assistance powered by **GitHub Models (gpt-4o-mini)** and **GitHub Copilot**, featuring a Foundry IQ-inspired RAG pipeline, multi-layer safety shields, intent-based routing, structured reasoning chains, and quantitative evaluation via RAGAS.
 
 ---
 
@@ -13,9 +13,9 @@ HR teams at large organisations spend significant time answering repetitive poli
 
 ---
 
-## 🏗️ Multi-Agent Architecture
+## 🏗️ Agent Pipeline Architecture
 
-The system is composed of four specialised agents, each with a single responsibility, orchestrated by a top-level HR Agent:
+The system is composed of four specialised components, each with a single responsibility, executed sequentially by an orchestrator
 
 ```mermaid
 flowchart TD
@@ -191,23 +191,27 @@ hr-agent-hackathon/
 ├── config/
 │   ├── settings.py                 # Central config — models, thresholds, paths
 │   └── agents/
-│       └── hr_agent_config.py      # HR agent system prompt + collection config
+│       └── hr_agent_config.py      # System prompt + collection config
 ├── src/
 │   ├── base_rag_pipeline.py        # Base RAG pipeline — indexing + retrieval
-│   ├── hr_rag_pipeline.py          # HR-specific RAG pipeline (extends base)
+│   ├── hr_rag_pipeline.py          # HR-specific pipeline (extends base)
 │   └── agent/
-│       ├── hr_agent.py             # Orchestrator — coordinates all agents
-│       ├── intent_classifier.py    # Routing Agent — LLM intent classification
-│       ├── reasoning_chain.py      # Reasoning Agent — classify + generate
-│       └── safety_shield.py        # Safety Agent — injection/PII blocking
+│       ├── hr_agent.py             # Orchestrator — coordinates pipeline
+│       ├── intent_classifier.py    # Routing component — LLM intent classification
+│       ├── reasoning_chain.py      # Reasoning component — classify + generate
+│       └── safety_shield.py        # Safety component — injection/PII blocking
 ├── data/
 │   └── hr_documents/               # 4 HR policy PDFs (source of truth)
 ├── reports/
-│   └── ragas_scores.json           # Latest RAGAS evaluation output
+│   ├── ragas_scores.json           # RAGAS evaluation output
+│   └── test_results/
+│       ├── safety_shield.txt       # 22 safety test results
+│       ├── integration.txt         # 6 integration test results
+│       └── end_to_end.txt          # 5 e2e test results
 └── tests/
-    ├── safety/                     # 20 parametrized safety test cases
+    ├── safety/                     # 22 parametrized safety test cases
     ├── integration/                # 6 agent integration tests
-    ├── e2e/                        # End-to-end UI respond() tests
+    ├── e2e/                        # 5 end-to-end UI tests
     └── rag/                        # Embedding quality + RAGAS evaluation
 ```
 
