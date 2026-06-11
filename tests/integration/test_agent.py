@@ -24,7 +24,7 @@ def test_leave_policy(agent):
     assert "LEAVE_QUERY" in result["intents"]
     assert result["shield_triggered"] is False
     # Answer quality
-    assert "21" in result["answer"] or "leave" in result["answer"].lower()
+    assert "21" in result["answer"] and "leave" in result["answer"].lower()
 
 
 def test_resignation_and_notice(agent):

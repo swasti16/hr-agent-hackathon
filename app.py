@@ -178,6 +178,8 @@ def normalize_history(gradio_history: list) -> str:
             content = " ".join(c.get("text", "") for c in content if isinstance(c, dict))
         skip = ("SHIELD TRIGGERED", "blocked by Safety Shield", "ResponsibleAIPolicyViolation")
         if any(i in content for i in skip):
+            # Intentional: drop entire turn if assistant response contains shield text.
+            # Prevents poisoned injection queries from persisting in LLM context history.
             continue
         if role and content:
             lines.append(f"{role}: {content}")

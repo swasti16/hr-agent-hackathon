@@ -26,8 +26,10 @@ flowchart TD
     ORC --> SA
     SA["🛡️ Safety Agent\nsafety_shield.py\nNo LLM · <10ms\nRegex + Fuzzy Match"]
 
-    SA -->|INJECTION / PII| BLK([⛔ Blocked — 0 LLM calls])
+    SA -->|INJECTION| BLK([⛔ Blocked — 0 LLM calls])
+    SA -->|PII detected| PII([🔄 PII Redacted — query continues])
     SA -->|PASS| ORC2
+    PII --> ORC2
 
     ORC2{"⚙️ Orchestrator\nRouting Decision"}
     ORC2 -->|Greeting detected| GRT([👋 Rule-based reply — 0 LLM calls])
@@ -288,7 +290,7 @@ Most queries (greetings, OOS, injections) don't need RAG or generation. Routing 
 HuggingFace `all-MiniLM-L6-v2` runs offline — no API cost, no rate limits, deterministic. The `get_embeddings()` factory in `llm_factory.py` is the single swap point for Azure AI embeddings.
 
 **Why rule-based Safety Agent first?**
-LLM-based safety checks cost API calls and add latency. The Safety Agent catches known injection patterns via regex + fuzzy matching in <10ms. The Reasoning Agent's Call 1 adds semantic injection detection as a second layer — defense-in-depth without paying LLM cost on every query.
+LLM-based safety checks cost API calls and add latency. The Safety Agent catches known injection patterns via regex + fuzzy matching with no LLM calls. The Reasoning Agent's Call 1 adds semantic injection detection as a second layer — defense-in-depth without paying LLM cost on every query.
 
 **Why two LLM calls in the Reasoning Agent?**
 Separating classification from generation prevents the LLM from generating a hallucinated answer before checking whether the context is sufficient or the query needs personal data. Call 2 only fires when Call 1 confirms the query is safe and answerable.

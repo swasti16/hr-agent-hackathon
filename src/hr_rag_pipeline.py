@@ -14,13 +14,19 @@ Pipeline:
 
 from src.base_rag_pipeline import RagPipeline
 import config.agents.hr_agent_config as hr_config
+from config.settings import Settings
 
 
 class HRRagPipeline(RagPipeline):
-    def __init__(self):
+    """
+    HR-specific RAG pipeline binding.
+    Extend RagPipeline with domain-specific config (docs dir, collection name).
+    Pattern: add new domain agents (e.g. BusinessRagPipeline) by subclassing RagPipeline.
+    """
+    def __init__(self, persist_dir=Settings.CHROMA_PERSIST_DIR):
         super().__init__(docs_dir=hr_config.DOCS_DIR,
                          collection_name=hr_config.COLLECTION_NAME,
-                         system_prompt=hr_config.SYSTEM_PROMPT)
+                         persist_dir=persist_dir)
 
 # ======== Quick Test ==================================
 

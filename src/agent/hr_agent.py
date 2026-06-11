@@ -13,6 +13,9 @@ from src.agent.intent_classifier import classify_intent
 from src.agent.reasoning_chain import reason_and_respond
 from src.hr_rag_pipeline import HRRagPipeline
 from src.agent.safety_shield import run_shield
+import threading
+
+_stats_lock = threading.Lock()
 
 session_stats = {
     "total_queries": 0,      # one per user message
@@ -48,12 +51,14 @@ class HRAgent:
         """
         # ======== Step 1: Safety Shield (fast, no LLM) ========
         shield = run_shield(query)
-        session_stats["total_queries"] += 1
-        if shield.threat_type == "PII":
-            session_stats["pii_blocked"] += 1
-        if not shield.is_safe:
-            if shield.threat_type == "INJECTION":
+
+        with _stats_lock:
+            session_stats["total_queries"] += 1
+            if shield.threat_type == "PII":
+                session_stats["pii_blocked"] += 1
+            if not shield.is_safe and shield.threat_type == "INJECTION":
                 session_stats["injections_blocked"] += 1
+        if not shield.is_safe:
             return {
                 "intents": ["BLOCKED"],
                 "answer": (
@@ -119,10 +124,12 @@ class HRAgent:
         # ======== Step 3: Intent Classification ========
         # Use sanitized_query so redacted PII doesn't confuse the classifier.
         intents = classify_intent(shield.sanitized_query, history_str)
-        for intent in intents:
-            session_stats["intent_counts"][intent] = session_stats["intent_counts"].get(intent, 0) + 1
+        with _stats_lock:
+            for intent in intents:
+                session_stats["intent_counts"][intent] = session_stats["intent_counts"].get(intent, 0) + 1
         if "OUT_OF_SCOPE" in intents and len(intents) == 1:
-            session_stats["oos_redirected"] += 1
+            with _stats_lock:
+                session_stats["oos_redirected"] += 1
             return {
                 "answer": "I can only answer HR policy questions for ABC Corporation.",
                 "intents": intents,
@@ -158,10 +165,15 @@ class HRAgent:
 
         # ======== Step 4: Build Retrieval Query ========
         # Enrich retrieval query with history for follow-ups.
-        retrieval_query = f"{history_str}\n{shield.sanitized_query}"
+        history_list = []
+        for line in history_str.strip().split("\n"):
+            if line.startswith("user: "):
+                history_list.append({"role": "user", "content": line[6:]})
+            elif line.startswith("assistant: "):
+                history_list.append({"role": "assistant", "content": line[11:]})
 
         # ======== Step 5: RAG Retrieval ========
-        rag_result = self.pipeline.ask(retrieval_query)
+        rag_result = self.pipeline.ask_with_history(shield.sanitized_query, history_list)
 
         # ======== Step 6: Reasoning + Response Generation ========
         response = reason_and_respond(
