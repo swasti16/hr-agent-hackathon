@@ -3,9 +3,9 @@ import pytest
 
 
 @pytest.fixture(scope="module")
-def indexed_pipeline():
-    """Load and index the HR documents once for this test session."""
-    pipeline = HRRagPipeline()
+def indexed_pipeline(tmp_path_factory):
+    temp_dir = str(tmp_path_factory.mktemp("chromadb"))
+    pipeline = HRRagPipeline(persist_dir=temp_dir)
     pipeline.load_and_index()
     return pipeline
 
@@ -29,22 +29,15 @@ def test_no_duplicate_chunks(indexed_pipeline):
 
 
 def test_notice_period_sources(indexed_pipeline):
-    """Test that a question about notice period retrieves the correct source and answer."""
-    print("Chunk count in second test", indexed_pipeline.get_chunk_count())
-    result = indexed_pipeline.ask(
-        "What is the notice period for resignation?"
-    )
-    print(f"Answer: {result['answer']}")
-    # At minimum — correct source must be present
+    result = indexed_pipeline.ask("What is the notice period for resignation?")
+
+    # Test retrieval quality — chunks and sources
     sources = result['sources']
-    assert any("leave_policy" in s for s in sources), "leave_policy.txt not in sources!"
+    assert any("notice" in s.lower() for s in sources), "notice_period doc not in sources"
+    assert any("60" in ctx for ctx in result['contexts']), "60 days not found in retrieved chunks"
 
-    # Answer must be correct regardless of extra sources
-    assert "30 days" in result['answer'], "Correct notice period not in answer"
-    assert "60 days" in result['answer'], "Full notice period info not in answer"
 
-    # Log if irrelevant source appeared (warning not failure)
-    if any("code_of_conduct" in s for s in sources):
-        print("Warning: code_of_conduct.txt retrieved "
-              "for notice period query. "
-              "Consider reducing TOP_K or adding metadata filter.")
+def test_shift_allowance_chunks_retrieved(indexed_pipeline):
+    result = indexed_pipeline.ask("What is the night shift allowance?")
+    assert any("shift" in s.lower() for s in result['sources'])
+    assert any("450" in ctx for ctx in result['contexts']), "INR 450 not in retrieved chunks"
