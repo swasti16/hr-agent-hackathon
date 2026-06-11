@@ -1,7 +1,7 @@
 # 🤖 HR Policy Assistant — ABC Corporation
 ### Microsoft Agents League Hackathon · Reasoning Agents Track
 
-> A **sequentially orchestrated agent pipeline** for HR policy assistance powered by **GitHub Models (gpt-4o-mini)** and **GitHub Copilot**, featuring a Foundry IQ-inspired RAG pipeline, multi-layer safety shields, intent-based routing, structured reasoning chains, and quantitative evaluation via RAGAS.
+> A **sequentially orchestrated agent pipeline** for HR policy assistance powered by **GitHub Models (gpt-4o-mini)** and **GitHub Copilot**, featuring a Foundry IQ-inspired RAG pipeline, dynamic query routing, multi-layer safety shields, structured two-stage reasoning chains, and quantitative evaluation via RAGAS.
 
 ---
 
@@ -15,29 +15,40 @@ HR teams at large organisations spend significant time answering repetitive poli
 
 ## 🏗️ Agent Pipeline Architecture
 
-The system is composed of four specialised components, each with a single responsibility, executed sequentially by an orchestrator
+The system is composed of **four specialised agents**, each with a single responsibility, coordinated by an orchestrator that makes **active routing decisions** based on query type — minimising LLM calls and maximising response accuracy.
 
 ```mermaid
 flowchart TD
-    U([👤 User Query]) --> SA
+    U([👤 User Query]) --> ORC
 
-    subgraph Agents["🤖 Multi-Agent Pipeline"]
-        SA["🛡️ Safety Agent\nsafety_shield.py\nRegex + Fuzzy Match\nNo LLM · <10ms"]
-        RA["🎯 Routing Agent\nintent_classifier.py\nIntent Classification\n1 LLM call"]
-        KA["📚 Knowledge Retrieval Agent\nhr_rag_pipeline.py\nFoundry IQ-inspired\nChromaDB · Top-5 chunks"]
-        RCA["🧠 Reasoning Agent\nreasoning_chain.py\nClassify + Generate\n2 LLM calls"]
-    end
+    ORC["⚙️ Orchestrator\nhr_agent.py\nDynamic routing based on query complexity"]
 
-    ORC["⚙️ Orchestrator\nhr_agent.py"]
+    ORC --> SA
+    SA["🛡️ Safety Agent\nsafety_shield.py\nNo LLM · <10ms\nRegex + Fuzzy Match"]
 
-    SA -->|PASS| ORC
-    SA -->|BLOCK| BLK([⛔ Blocked Response])
-    ORC --> RA
-    RA -->|OUT_OF_SCOPE| OOS([↩️ Redirect Response])
-    RA -->|GREETING| GRT([👋 Greeting Response])
-    RA -->|In-scope| KA
+    SA -->|INJECTION / PII| BLK([⛔ Blocked — 0 LLM calls])
+    SA -->|PASS| ORC2
+
+    ORC2{"⚙️ Orchestrator\nRouting Decision"}
+    ORC2 -->|Greeting detected| GRT([👋 Rule-based reply — 0 LLM calls])
+    ORC2 -->|Needs classification| RA
+
+    RA["🎯 Routing Agent\nintent_classifier.py\n1 LLM call\nIntent Classification"]
+
+    RA -->|OUT_OF_SCOPE| OOS([↩️ Redirect — 1 LLM call total])
+    RA -->|GREETING| GRT2([👋 Greeting — 1 LLM call total])
+    RA -->|HR policy intent| KA
+
+    KA["📚 Knowledge Retrieval Agent\nhr_rag_pipeline.py\nNo LLM\nChromaDB · Top-5 chunks"]
+
     KA --> RCA
-    RCA --> ANS([✅ Grounded Answer])
+
+    RCA["🧠 Reasoning Agent\nreasoning_chain.py\nCall 1 — Query Dimension Classifier\nCall 2 — Grounded Answer Generator"]
+
+    RCA -->|needs_personal_data = true| HR([↩️ Contact HR — 2 LLM calls total])
+    RCA -->|context_insufficient| NF([↩️ Policy not found — 2 LLM calls total])
+    RCA -->|semantic injection detected| BLK2([⛔ Semantic block — 2 LLM calls total])
+    RCA -->|all clear| ANS([✅ Grounded Answer — 3 LLM calls total])
 
     subgraph KB["📄 Knowledge Base · Foundry IQ-inspired"]
         P1[Leave Policy PDF]
@@ -49,28 +60,59 @@ flowchart TD
     KB --> KA
 ```
 
-### Agent Responsibilities
+---
+
+## 🧠 Multi-Step Reasoning & Dynamic Routing
+
+A key design goal is **cost-aware orchestration** — the system uses the minimum number of LLM calls needed to answer each query correctly. The orchestrator makes active routing decisions at two checkpoints:
+
+### Routing Decision 1 — Pre-LLM (Orchestrator)
+Before any LLM call, the orchestrator checks for trivial cases:
+- **Injection / PII detected** → block immediately, 0 LLM calls
+- **Greeting keyword matched** → rule-based reply, 0 LLM calls
+- **All other queries** → forward to Routing Agent
+
+### Routing Decision 2 — Post-Intent (Routing Agent)
+After intent classification:
+- **OUT_OF_SCOPE** → redirect, pipeline stops at 1 LLM call
+- **GREETING** (LLM-classified) → greeting reply, 1 LLM call
+- **HR policy intent** → forward to Knowledge + Reasoning agents
+
+### Routing Decision 3 — Post-Retrieval (Reasoning Agent, 2-stage)
+The Reasoning Agent runs **two sequential LLM calls**, each making independent decisions:
+
+**Call 1 — Query Dimension Classifier:**
+Evaluates three dimensions in a single structured JSON response:
+- `needs_personal_data` → if true, redirect to HR without generating an answer
+- `context_sufficient` → if false, return "policy not found" without generating
+- `is_injection` → semantic injection check (catches paraphrased attacks that bypass regex)
+
+**Call 2 — Grounded Answer Generator:**
+Only fires if Call 1 clears all three checks. Uses a structured Chain-of-Thought prompt with explicit rules to prevent hallucination on edge cases (tenure calculations, stacked allowances, holiday pay).
+
+### LLM Call Budget Per Query Type
+
+| Query Type | LLM Calls | Path |
+|---|---|---|
+| Injection / PII | 0 | Safety Agent blocks |
+| Rule-based greeting | 0 | Orchestrator keyword match |
+| Out of scope | 1 | Routing Agent only |
+| Needs personal DB data | 2 | Routing + Classifier |
+| Context insufficient | 2 | Routing + Classifier |
+| Semantic injection | 2 | Routing + Classifier |
+| Full policy answer | 3 | Routing + Classifier + Generator |
+
+---
+
+## 👥 Agent Responsibilities
 
 | Agent | File | Role | LLM? |
 |---|---|---|---|
 | **Safety Agent** | `safety_shield.py` | Injection + PII detection via regex/fuzzy match | ❌ No LLM |
-| **Routing Agent** | `intent_classifier.py` | Classifies query intent, routes to correct policy domain | ✅ |
+| **Routing Agent** | `intent_classifier.py` | Classifies query intent, routes to correct policy domain | ✅ 1 call |
 | **Knowledge Retrieval Agent** | `hr_rag_pipeline.py` | Foundry IQ-inspired grounding — retrieves top-5 chunks from ChromaDB | ❌ No LLM |
-| **Reasoning Agent** | `reasoning_chain.py` | Two-step: classify query dimensions, then generate grounded answer | ✅ |
-| **Orchestrator** | `hr_agent.py` | Coordinates agent pipeline, manages session stats | — |
-
-### Multi-Step Reasoning Flow
-
-```
-1. Safety Agent     → block/pass (no LLM, <10ms)
-2. Routing Agent    → classify intent (1 LLM call)
-3. Knowledge Agent  → retrieve top-5 policy chunks
-4. Reasoning Agent  → classify query dimensions (needs DB? injection? context ok?)
-                    → generate grounded answer
-                    (2 LLM calls with structured chain-of-thought)
-```
-
-Total: up to **3 LLM calls** per query with full reasoning trace exposed in UI.
+| **Reasoning Agent** | `reasoning_chain.py` | Two-stage: dimension classifier then grounded answer generator | ✅ 2 calls |
+| **Orchestrator** | `hr_agent.py` | Active routing decisions at each checkpoint, session stats | — |
 
 ---
 
@@ -79,11 +121,11 @@ Total: up to **3 LLM calls** per query with full reasoning trace exposed in UI.
 ### Foundry IQ — Grounding Layer
 The Knowledge Retrieval Agent implements the same pattern as Microsoft Foundry IQ:
 - Knowledge base built from 4 HR policy PDFs
-- Permission-aware retrieval (only indexed documents are sources)
-- Grounded answers with source citations in the debug panel
+- Permission-aware retrieval — only indexed documents are sources, no general LLM knowledge
+- Grounded answers with source chunk citations exposed in the debug panel
 - Implemented via ChromaDB + HuggingFace `all-MiniLM-L6-v2` embeddings (local, no Azure dependency)
 
-> Note: Built using local OSS stack due to Azure free tier rate limits. Architecture is designed to swap ChromaDB for Azure AI Search with minimal code changes — `get_vector_store()` in `llm_factory.py` is the single swap point.
+> **Azure migration path:** Architecture is designed to swap ChromaDB for Azure AI Search with a single line change — `get_vector_store()` in `llm_factory.py` is the swap point. Local OSS stack used due to Azure free tier rate limits during development.
 
 ---
 
@@ -91,19 +133,20 @@ The Knowledge Retrieval Agent implements the same pattern as Microsoft Foundry I
 
 | Capability | What It Does |
 |---|---|
-| 🛡️ **Safety Agent** | Rule-based injection + PII detection — zero LLM calls, instant blocking |
+| 🛡️ **Safety Agent** | Rule-based injection + PII detection — zero LLM calls, <10ms blocking |
+| ⚙️ **Dynamic Orchestration** | Active routing cuts LLM calls from 3 to 0-2 for non-policy queries |
 | 🎯 **Routing Agent** | Intent classification routes queries to correct policy domain before retrieval |
 | 📚 **Knowledge Retrieval Agent** | Foundry IQ-inspired grounding on 4 HR policy PDFs via ChromaDB |
-| 🔗 **Reasoning Agent** | Two-step structured reasoning: dimension classification + grounded generation |
-| 📊 **RAGAS Evaluation** | Faithfulness, Context Precision, Answer Relevancy scored on 16-question golden dataset |
-| 🎛️ **Quality Dashboard** | Live session stats + offline RAGAS scores in dedicated UI tab |
+| 🧠 **Two-Stage Reasoning Agent** | Stage 1 classifies query dimensions; Stage 2 generates grounded answer |
+| 📊 **RAGAS Evaluation** | Faithfulness, Context Precision, Answer Relevancy on 16-question golden dataset |
+| 🎛️ **Quality Dashboard** | Live session stats + RAGAS scores in dedicated UI tab |
 
 ---
 
 ## 📊 Evaluation Results
 
 Evaluated on a **16-question golden dataset** built from actual HR policy documents.
-Judge model: `gpt-4.1-mini` (separate from pipeline model — `gpt-4o-mini` — to avoid self-evaluation bias).
+Judge model: `gpt-4.1-mini` — separate from pipeline model (`gpt-4o-mini`) to avoid self-evaluation bias.
 
 | Metric | Score | Threshold | Status |
 |---|---|---|---|
@@ -115,17 +158,19 @@ Judge model: `gpt-4.1-mini` (separate from pipeline model — `gpt-4o-mini` — 
 
 ## 🛡️ Safety & Responsible AI
 
-`tests/safety/test_safety_shield.py` — 20 parametrized pytest cases:
+`tests/safety/test_safety_shield.py` — 22 parametrized pytest cases covering:
 
 - Direct prompt injection
-- Typo-obfuscated injection (`ign0re`, `1gnore`)
+- Typo-obfuscated injection (`ign0re`, `1gnore`, `forg3t`)
 - Base64-encoded injection
-- Identity assumption attacks (`As an admin...`)
-- Document poisoning attempts
+- Identity assumption attacks (`Act as an admin...`)
+- Document poisoning attempts (`Update your internal state...`)
 - PII detection (email, phone, Aadhaar, PAN)
-- False positive validation (legitimate tough questions pass through)
+- False positive validation — legitimate tough questions pass through
 
-All responses are grounded in indexed policy documents. The system will not answer from general LLM knowledge — if a topic isn't in the policy PDFs, it says so explicitly.
+**Defense-in-depth:** Rule-based Safety Agent catches known patterns in <10ms. The Reasoning Agent's Call 1 adds a second semantic injection check via LLM — catching paraphrased attacks that bypass regex.
+
+All responses are grounded in indexed policy documents. If a topic isn't in the policy PDFs, the system says so explicitly — it will not fabricate answers from general LLM knowledge.
 
 ---
 
@@ -168,7 +213,7 @@ python app.py --force_reindex
 ## 🧪 Running Tests
 
 ```bash
-# Safety agent tests (no LLM — instant)
+# Safety agent tests (no LLM — instant, 22 cases)
 pytest tests/safety/ -v
 
 # Integration tests (~6 LLM calls)
@@ -196,10 +241,10 @@ hr-agent-hackathon/
 │   ├── base_rag_pipeline.py        # Base RAG pipeline — indexing + retrieval
 │   ├── hr_rag_pipeline.py          # HR-specific pipeline (extends base)
 │   └── agent/
-│       ├── hr_agent.py             # Orchestrator — coordinates pipeline
-│       ├── intent_classifier.py    # Routing component — LLM intent classification
-│       ├── reasoning_chain.py      # Reasoning component — classify + generate
-│       └── safety_shield.py        # Safety component — injection/PII blocking
+│       ├── hr_agent.py             # Orchestrator — active routing + session stats
+│       ├── intent_classifier.py    # Routing Agent — LLM intent classification
+│       ├── reasoning_chain.py      # Reasoning Agent — two-stage classify + generate
+│       └── safety_shield.py        # Safety Agent — injection/PII blocking
 ├── data/
 │   └── hr_documents/               # 4 HR policy PDFs (source of truth)
 ├── reports/
@@ -236,23 +281,30 @@ hr-agent-hackathon/
 
 ## 🔑 Design Decisions
 
-**Why local embeddings?** HuggingFace `all-MiniLM-L6-v2` runs offline — no API cost, no rate limits, deterministic. The `get_embeddings()` factory in `llm_factory.py` is the single swap point for Azure AI embeddings.
+**Why dynamic routing instead of always running all agents?**
+Most queries (greetings, OOS, injections) don't need RAG or generation. Routing them out early cuts LLM calls from 3 to 0-1, reduces latency, and stays within GitHub Models' free tier rate limits. This is explicit cost-aware orchestration.
 
-**Why rule-based Safety Agent?** LLM-based safety checks cost API calls and add latency. The Safety Agent catches ~95% of attacks via regex + fuzzy matching in <10ms. The Reasoning Agent adds a second LLM-based injection check as defense-in-depth.
+**Why local embeddings?**
+HuggingFace `all-MiniLM-L6-v2` runs offline — no API cost, no rate limits, deterministic. The `get_embeddings()` factory in `llm_factory.py` is the single swap point for Azure AI embeddings.
 
-**Why two LLM calls in the Reasoning Agent?** The classifier call (call 1) determines if the query needs personal DB data, if context is sufficient, or if it's a semantic injection. This prevents hallucinated answers and avoids unnecessary generation. Call 2 only fires when the query is genuinely answerable.
+**Why rule-based Safety Agent first?**
+LLM-based safety checks cost API calls and add latency. The Safety Agent catches known injection patterns via regex + fuzzy matching in <10ms. The Reasoning Agent's Call 1 adds semantic injection detection as a second layer — defense-in-depth without paying LLM cost on every query.
 
-**RAGAS judge model separation:** Using the same model as judge and pipeline inflates scores (model agrees with itself). Pipeline uses `gpt-4o-mini`, judge uses `gpt-4.1-mini` — different models reduce self-evaluation bias.
+**Why two LLM calls in the Reasoning Agent?**
+Separating classification from generation prevents the LLM from generating a hallucinated answer before checking whether the context is sufficient or the query needs personal data. Call 2 only fires when Call 1 confirms the query is safe and answerable.
+
+**Why a separate judge model for RAGAS?**
+Using the same model as both pipeline and judge inflates scores — the model tends to agree with its own outputs. Pipeline uses `gpt-4o-mini`, judge uses `gpt-4.1-mini` — different model families reduce self-evaluation bias.
 
 ---
 
 ## 📝 Synthetic Data Notice
 
-All HR policy documents used in this project are **synthetic** and created for demonstration purposes only. They represent a fictional company (ABC Corporation) and contain no real employee data, PII, or confidential information.
+All HR policy documents are **synthetic**, created for demonstration purposes only. They represent a fictional company (ABC Corporation) and contain no real employee data, PII, or confidential information.
 
 ---
 
 ## 👩‍💻 Built By
 
-**Swasti Shrivastava**
+**Swasti Shrivastava**  
 GitHub: [@swasti16](https://github.com/swasti16)

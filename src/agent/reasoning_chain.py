@@ -151,7 +151,8 @@ def classify_query(query: str, context: str, llm) -> dict:
     chain = CLASSIFIER_PROMPT | llm | StrOutputParser()
     result = chain.invoke({"query": query, "context": context})
     try:
-        cleaned = result.strip().rstrip("```").lstrip("```json").lstrip("```").rstrip("```").strip()
+        cleaned = result.strip()
+        cleaned = cleaned.removesuffix("```").removeprefix("```json").removeprefix("```").strip()
         return json.loads(cleaned)
     except json.JSONDecodeError:
         # Safe fallback — do not crash; conservative assumption.
