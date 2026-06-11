@@ -2,8 +2,11 @@
 E2E tests — Gradio respond() function behavior.
 Tests UI-layer logic: history management, shield message filtering, OOS handling.
 """
-import pytest
+import os
 from app import respond
+
+
+os.environ["TESTING"] = "1"
 
 
 def test_empty_message_returns_unchanged_history():

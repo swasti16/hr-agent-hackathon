@@ -30,12 +30,16 @@ def initialize():
     # Warmup ping — eliminates 40s cold start on first real query
     try:
         agent.ask("hello")
+        session_stats["total_queries"] = 0
     except Exception:
         pass
     is_ready = True
 
 
-threading.Thread(target=initialize, daemon=True).start()
+if os.environ.get("TESTING") != "1":
+    threading.Thread(target=initialize, daemon=True).start()
+else:
+    is_ready = True
 
 
 # ================ Optimized CSS ================
@@ -236,7 +240,7 @@ def get_safety_metrics():
 def get_intent_dataframe():
     data = [[intent, count] for intent, count in session_stats["intent_counts"].items()]
     if not data:
-        return [["—", 0]]
+        return []
     return data
 
 
@@ -280,7 +284,10 @@ def chat(message: str, history_str: str):
     return answer, debug, result.get("threat_type"), result.get("intents", [])
 
 
-def respond(message: str, history: list = []):
+def respond(message: str, history: list = None):
+    if history is None:
+        history = []
+
     if not message.strip():
         return history, "", ""
 

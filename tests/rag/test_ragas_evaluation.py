@@ -9,7 +9,7 @@ Tests the RAG pipeline quality using 3 core RAGAS metrics:
 """
 
 import pytest
-import datetime
+from datetime import datetime
 import os
 import json
 from datasets import Dataset
@@ -117,8 +117,8 @@ def create_ragas_score_json(faith_score, cprecision_score, relevancy_score):
     project_folder = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     ragas_score_json = {
         "recorded_at": datetime.now().isoformat(),
-        "judge_model": settings.GROQ_JUDGE_MODEL,
-        "pipeline_model": settings.GROQ_MODEL,
+        "judge_model": settings.GITHUB_JUDGE_MODEL,
+        "pipeline_model": settings.GITHUB_MODEL,
         "scores": {
             "faithfulness": faith_score,
             "context_precision": cprecision_score,
@@ -126,7 +126,7 @@ def create_ragas_score_json(faith_score, cprecision_score, relevancy_score):
         },
         "dataset_size": len(GOLDEN_DATASET)
     }
-    with open(os.path.join(project_folder, "reports","ragas_score.json"), "w") as f:
+    with open(os.path.join(project_folder, "reports","ragas_scores.json"), "w") as f:
         json.dump(ragas_score_json, f, indent=2)
 
 
@@ -150,7 +150,7 @@ def pipeline():
 # with itself), but scores are stable and reproducible. A cross-model judge
 # is the production recommendation.
 def configure_ragas_judge():
-    """Configure RAGAS to use Groq instead of OpenAI."""
+    """Configure RAGAS to use GitHub Models instead of OpenAI."""
     judge_llm = LangchainLLMWrapper(get_judge_llm())
     judge_embeddings = LangchainEmbeddingsWrapper(get_embeddings())
 
@@ -175,7 +175,7 @@ def setup_scores(request, pipeline):
         run_config=run_config
     )
 
-    # create ragas_score.json
+    # create ragas_scores.json
     create_ragas_score_json(results["faithfulness"],
                             results["context_precision"],
                             results["answer_relevancy"])

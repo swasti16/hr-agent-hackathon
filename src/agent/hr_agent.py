@@ -15,7 +15,7 @@ from src.hr_rag_pipeline import HRRagPipeline
 from src.agent.safety_shield import run_shield
 
 session_stats = {
-    "total_queries": -1,      # one per user message
+    "total_queries": 0,      # one per user message
     "injections_blocked": 0,
     "pii_blocked": 0,
     "oos_redirected": 0,
@@ -49,11 +49,11 @@ class HRAgent:
         # ======== Step 1: Safety Shield (fast, no LLM) ========
         shield = run_shield(query)
         session_stats["total_queries"] += 1
+        if shield.threat_type == "PII":
+            session_stats["pii_blocked"] += 1
         if not shield.is_safe:
             if shield.threat_type == "INJECTION":
                 session_stats["injections_blocked"] += 1
-            elif shield.threat_type == "PII":
-                session_stats["pii_blocked"] += 1
             return {
                 "intents": ["BLOCKED"],
                 "answer": (
