@@ -1,0 +1,29 @@
+============================= test session starts =============================
+platform win32 -- Python 3.10.6, pytest-9.0.3, pluggy-1.6.0 -- D:\swasti16\hr-agent-hackathon\venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: D:\swasti16\hr-agent-hackathon
+configfile: pyproject.toml
+plugins: anyio-4.13.0, asyncio-1.3.0, cov-7.1.0
+asyncio: mode=strict, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 8 items
+
+tests/rag/test_document_indexing.py::TestDocumentIndexing::test_chunk_count_increases_after_indexing PASSED [ 12%]
+tests/rag/test_document_indexing.py::TestDocumentIndexing::test_metadata_stored_correctly PASSED [ 25%]
+tests/rag/test_document_indexing.py::TestDocumentIndexing::test_known_content_retrievable_after_indexing PASSED [ 37%]
+tests/rag/test_document_indexing.py::TestDocumentIndexing::test_multiple_documents_indexed PASSED [ 50%]
+tests/rag/test_document_indexing.py::TestDocumentIndexing::test_similarity_scores_reasonable PASSED [ 62%]
+tests/rag/test_document_indexing.py::TestRagPipelineIndexing::test_hr_documents_indexed_successfully PASSED [ 75%]
+tests/rag/test_document_indexing.py::TestRagPipelineIndexing::test_leave_policy_content_indexed PASSED [ 87%]
+tests/rag/test_document_indexing.py::TestRagPipelineIndexing::test_chunk_count_after_hr_indexing PASSED [100%]
+
+============================== warnings summary ===============================
+tests/rag/test_document_indexing.py::TestDocumentIndexing::test_chunk_count_increases_after_indexing
+  D:\swasti16\hr-agent-hackathon\venv\lib\site-packages\opentelemetry\util\_importlib_metadata.py:32: DeprecationWarning: SelectableGroups dict interface is deprecated. Use select.
+    return EntryPoints(ep for group_eps in eps.values() for ep in group_eps)
+
+tests/rag/test_document_indexing.py: 208 warnings
+  D:\swasti16\hr-agent-hackathon\venv\lib\site-packages\chromadb\types.py:144: PydanticDeprecatedSince211: Accessing the 'model_fields' attribute on the instance is deprecated. Instead, you should access this attribute from the model class. Deprecated in Pydantic V2.11 to be removed in V3.0.
+    return self.model_fields  # pydantic 2.x
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 8 passed, 209 warnings in 43.25s =======================

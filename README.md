@@ -29,7 +29,7 @@ flowchart TD
     SA -->|INJECTION| BLK([⛔ Blocked — 0 LLM calls])
     SA -->|PII detected| PII([🔄 PII Redacted — query continues])
     SA -->|PASS| ORC2
-    PII --> ORC2
+    PII -->|sanitized query| ORC2
 
     ORC2{"⚙️ Orchestrator\nRouting Decision"}
     ORC2 -->|Greeting detected| GRT([👋 Rule-based reply — 0 LLM calls])
@@ -303,6 +303,16 @@ Using the same model as both pipeline and judge inflates scores — the model te
 ## 📝 Synthetic Data Notice
 
 All HR policy documents are **synthetic**, created for demonstration purposes only. They represent a fictional company (ABC Corporation) and contain no real employee data, PII, or confidential information.
+
+---
+
+## 🤖 GitHub Copilot Usage
+
+GitHub Copilot was used throughout development for:
+- Generating boilerplate for agent classes and prompt templates
+- Inline suggestions
+- Test case generation for `test_safety_shield.py`
+- Iterative refinement of CLASSIFIER_PROMPT and REASONING_PROMPT
 
 ---
 

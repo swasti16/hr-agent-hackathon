@@ -1,11 +1,11 @@
 {
-  "recorded_at": "2025-06-10T05:34:00",
+  "recorded_at": "2026-06-11T18:48:09.366369",
   "judge_model": "gpt-4.1-mini",
   "pipeline_model": "gpt-4o-mini",
   "scores": {
-    "faithfulness": 0.916,
-    "context_precision": 0.942,
-    "answer_relevancy": 0.846
+    "faithfulness": 0.9336805555555556,
+    "context_precision": 0.8930555554995978,
+    "answer_relevancy": 0.9147360855463537
   },
   "dataset_size": 16
 }
