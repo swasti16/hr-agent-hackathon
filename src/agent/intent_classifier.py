@@ -16,7 +16,7 @@ Supported intents:
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from src.utils.llm_factory import get_llm
-
+import re
 from typing import List
 
 # NOTE: If you add a new intent here, also add it to the VALID_INTENTS set
@@ -24,7 +24,7 @@ from typing import List
 INTENT_PROMPT = PromptTemplate.from_template("""
 You are an HR assistant intent classifier.
 Classify the user query with history into ONE OR MORE of these intents:
-- LEAVE_QUERY: questions about leave, holidays, sick days, maternity, paternity
+- LEAVE_QUERY: questions about leave, holidays, sick days, maternity, paternity, compensatory leave, comp-off, CL
 - DISCIPLINARY: questions about violations, warnings, termination, misconduct
 - RESIGNATION: questions about notice period, resignation process, exit
 - SHIFT_QUERY: questions about shift timings, night shift, weekend shift allowances
@@ -78,7 +78,7 @@ def classify_intent(query: str, history_str: str = "") -> List[str]:
     result = chain.invoke({"query": query, "history": history_str})
 
     # Strip backticks and whitespace; LLM sometimes wraps output in ` `
-    intents = [i.strip().strip("`").upper() for i in result.split(",")]
+    intents = [i.strip().strip("`").upper() for i in re.split(r"[,|]", result)]
 
     valid_intents = [i for i in intents if i in _VALID_INTENTS]
 
