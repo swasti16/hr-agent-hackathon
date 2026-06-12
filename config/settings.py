@@ -2,14 +2,20 @@
 Central configuration for Project.
 All settings loaded from .env file.
 """
+import logging
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 os.environ["CHROMA_TELEMETRY"] = "False"
+
+# Mute telemetry warning spam
+logging.getLogger("chromadb").setLevel(logging.CRITICAL)
+logging.getLogger("chromadb.telemetry").setLevel(logging.CRITICAL)
+logging.getLogger("httpx").setLevel(logging.CRITICAL)
+logging.getLogger("httpcore").setLevel(logging.CRITICAL)
 
 
 class Settings:
@@ -31,6 +37,9 @@ class Settings:
     CHUNK_OVERLAP: int = CHUNK_SIZE // 10
     TOP_K: int = 5
 
+    # ======== Logging ==================================
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "ERROR").upper()
+
     # ======== Evaluation Thresholds ==================================
     MIN_FAITHFULNESS: float = 0.80
     MIN_CONTEXT_PRECISION: float = 0.75
@@ -44,3 +53,9 @@ class Settings:
 
 
 settings = Settings()
+log_level = getattr(logging, settings.LOG_LEVEL, logging.ERROR)
+logging.basicConfig(
+    level=log_level,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logging.getLogger().setLevel(log_level)
