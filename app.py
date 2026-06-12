@@ -359,7 +359,7 @@ with gr.Blocks(title="Enterprise HR Copilot") as demo:
         with gr.Tab("💬 Assistant Terminal"):
             with gr.Column():
                 chatbot = gr.Chatbot(
-                    height=500,
+                    height=350,
                     show_label=False,
                     elem_classes="chatbot-wrap",
                 )
