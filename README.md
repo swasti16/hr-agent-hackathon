@@ -18,6 +18,12 @@ HR teams at large organisations spend significant time answering repetitive poli
 
 ---
 
+## 🎬 Demo
+
+[![Demo Video](https://img.shields.io/badge/Watch-Demo-red?logo=youtube)](https://youtu.be/SFR3RisyifY)
+
+---
+
 ## 🏗️ Agent Pipeline Architecture
 
 The system is composed of **four specialised agents**, each with a single responsibility, coordinated by an orchestrator that makes **active routing decisions** — minimising LLM calls and maximising response accuracy.
