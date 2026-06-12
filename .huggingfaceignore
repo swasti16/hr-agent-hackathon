@@ -1,0 +1,11 @@
+venv/
+.venv/
+data/chromadb/
+__pycache__/
+*.pyc
+.pytest_cache/
+htmlcov/
+.coverage
+reports/test_results/
+.idea/
+.vscode/
