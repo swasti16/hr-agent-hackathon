@@ -5,6 +5,9 @@ Uses GitHub Models (OpenAI-compatible) as the LLM provider.
 
 from langchain_openai import ChatOpenAI
 from config.settings import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_llm(temperature: float = 0.1) -> ChatOpenAI:
@@ -17,7 +20,7 @@ def get_llm(temperature: float = 0.1) -> ChatOpenAI:
 
 
 def get_judge_llm() -> ChatOpenAI:
-    print(f"Initializing judge LLM: {settings.GITHUB_JUDGE_MODEL}")
+    logger.info("Initializing judge LLM: %s", settings.GITHUB_JUDGE_MODEL)
     return ChatOpenAI(
         model=settings.GITHUB_JUDGE_MODEL,
         api_key=settings.GITHUB_TOKEN,

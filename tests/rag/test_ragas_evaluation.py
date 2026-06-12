@@ -22,14 +22,9 @@ from ragas.metrics import (
 from ragas.llms import LangchainLLMWrapper
 from ragas.embeddings import LangchainEmbeddingsWrapper
 from ragas.run_config import RunConfig
-import logging
 from src.utils.llm_factory import get_judge_llm, get_embeddings
 from src.hr_rag_pipeline import HRRagPipeline
 from config.settings import settings
-
-# Mute telemetry warning spam
-logging.getLogger("chromadb").setLevel(logging.ERROR)
-logging.getLogger("chromadb.telemetry").setLevel(logging.ERROR)
 
 
 # ======== Golden Test Dataset ==================================

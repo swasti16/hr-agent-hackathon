@@ -16,8 +16,11 @@ Supported intents:
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from src.utils.llm_factory import get_llm
+import logging
 import re
 from typing import List
+
+logger = logging.getLogger(__name__)
 
 # NOTE: If you add a new intent here, also add it to the VALID_INTENTS set
 # below and update classify_intent()'s fallback logic.
@@ -83,7 +86,11 @@ def classify_intent(query: str, history_str: str = "") -> List[str]:
     valid_intents = [i for i in intents if i in _VALID_INTENTS]
 
     # Debug trace — remove or guard with a DEBUG flag before production
-    print(f"[IntentClassifier] Raw: {result!r}  →  Parsed: {valid_intents}")
+    logger.info(
+        "[IntentClassifier] Raw: %r Parsed: %s",
+        result,
+        valid_intents,
+    )
 
     # Fallback: if LLM returned nothing recognisable, treat as out-of-scope
     return valid_intents or ["OUT_OF_SCOPE"]

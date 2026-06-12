@@ -19,6 +19,9 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from config.settings import settings
 from src.utils.llm_factory import get_llm, get_vector_store
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ======== Pipeline Class ==================================
 
@@ -57,13 +60,22 @@ class RagPipeline:
     def _index_documents(self, loader: DirectoryLoader) -> int:
         """Split documents into chunks and store in ChromaDB."""
         documents = loader.load()
-        print(f"Loaded {len(documents)} documents")
+        logger.info(
+            "Loaded %s documents",
+            len(documents),
+        )
 
         chunks = self.split_into_chunks(documents)
-        print(f"Split into {len(chunks)} chunks")
+        logger.info(
+            "Split into %s chunks",
+            len(chunks),
+        )
 
         self.vector_store.add_documents(chunks)
-        print(f"Indexed {len(chunks)} chunks into ChromaDB")
+        logger.info(
+            "Indexed %s chunks into ChromaDB",
+            len(chunks),
+        )
 
         return len(chunks)
 
@@ -83,24 +95,35 @@ class RagPipeline:
         Returns number of chunks indexed.
         """
         existing_count = self.get_chunk_count()
-        print(f"Existing chunks in DB before indexing: {existing_count}")
+        logger.info(
+            "Existing chunks in DB before indexing: %s",
+            existing_count,
+        )
         if not force_reindex and existing_count > 0:
-            print("Loaded existing ChromaDB index")
+            logger.info("Loaded existing ChromaDB index")
             return existing_count
         if existing_count > 0:
-            print(f"Found {existing_count} existing chunks. "
-                  "Deleting for fresh indexing...")
+            logger.info(
+                "Found %s existing chunks. Deleting for fresh indexing...",
+                existing_count,
+            )
         else:
-            print("Fresh database. Starting indexing...")
+            logger.info("Fresh database. Starting indexing...")
         try:
             self.vector_store.delete_collection()
         except Exception as e:
-            print(f"Warning: Could not delete existing collection. "
-                  f"Proceeding with indexing. Error: {e}")
+            logger.warning(
+                "Could not delete existing collection. Proceeding with "
+                "indexing. Error: %s",
+                e,
+            )
         self.vector_store = get_vector_store(
             collection_name=self.collection_name,
             persist_directory=self.persist_dir)
-        print(f"Loading documents from {self.docs_dir}...")
+        logger.info(
+            "Loading documents from %s...",
+            self.docs_dir,
+        )
 
         # Load all .pdf files from hr_documents folder
         loader = DirectoryLoader(self.docs_dir, glob="**/*.pdf",

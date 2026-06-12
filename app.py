@@ -8,6 +8,10 @@ import time
 from pathlib import Path
 from config.settings import Settings
 from src.agent.hr_agent import HRAgent, session_stats
+import logging
+
+logger = logging.getLogger(__name__)
+
 sys.stdout.reconfigure(line_buffering=True)
 os.environ["PYTHONUNBUFFERED"] = "1"
 
@@ -250,7 +254,7 @@ def get_intent_dataframe():
 def chat(message: str, history_str: str):
     t0 = time.time()
     result = agent.ask(message, history_str)
-    print(f"[CHAT] done in {time.time()-t0:.2f}s", flush=True)
+    logger.info(f"[CHAT] done in {time.time()-t0:.2f}s", flush=True)
 
     if result.get("shield_triggered"):
         threat = result.get("threat_type", "UNKNOWN")
@@ -361,7 +365,7 @@ with gr.Blocks(title="Enterprise HR Copilot") as demo:
                 )
                 with gr.Row(elem_classes="input-row"):
                     msg = gr.Textbox(
-                        placeholder="Inquire regarding corporate policy, structure, benefits, or allowances...",
+                        placeholder="Inquire regarding corporate policies: code of conduct, notice period, leaves, or shift allowances...",
                         show_label=False,
                         scale=6,
                         container=False,
@@ -375,6 +379,10 @@ with gr.Blocks(title="Enterprise HR Copilot") as demo:
                         "How much is my night shift allowance?",
                         "What is the notice period for resignation?",
                         "What happens after a disciplinary violation?",
+                        "What is odd shift?",
+                        "Can I take leaves during notice period?",
+                        "How much will I get paid if I work on a holiday in a night shift?",
+                        "/clear",
                     ],
                     inputs=msg,
                     label="Suggested Infrastructure & Policy Inquiries",

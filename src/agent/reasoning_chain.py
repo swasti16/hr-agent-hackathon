@@ -12,8 +12,11 @@ catching injection attempts that slip past the rule-based shield.
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from src.utils.llm_factory import get_llm
+import logging
 import json
 from datetime import date
+
+logger = logging.getLogger(__name__)
 
 
 # ================ Reasoning Prompt ================
@@ -167,12 +170,20 @@ def classify_query(query: str, context: str, llm) -> dict:
     result = chain.invoke({"query": query, "context": context})
     try:
         cleaned = result.strip()
-        cleaned = cleaned.removesuffix("```").removeprefix("```json").removeprefix("```").strip()
+        cleaned = (
+            cleaned.removesuffix("```")
+            .removeprefix("```json")
+            .removeprefix("```")
+            .strip()
+        )
         return json.loads(cleaned)
     except json.JSONDecodeError:
         # Safe fallback — do not crash; conservative assumption.
         # Log the raw result so we can debug classifier drift in production.
-        print(f"[ClassifyQuery] JSON parse failed. Raw output: {result!r}")
+        logger.warning(
+            "[ClassifyQuery] JSON parse failed. Raw output: %r",
+            result,
+        )
         return _CLASSIFIER_FALLBACK
 
 
@@ -255,7 +266,7 @@ def reason_and_respond(
         "history": history_str,
         "today": date.today().strftime("%B %d, %Y"),
     })
-    print(f"[ReasonAndRespond] Generated answer: {answer!r}")
+    logger.info("[ReasonAndRespond] Generated answer: %r", answer)
 
     return {
         "answer": answer,
