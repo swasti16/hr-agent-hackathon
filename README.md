@@ -1,12 +1,8 @@
 ---
-title: HR Policy Assistant
-emoji: 🤖
-colorFrom: indigo
-colorTo: cyan
-sdk: gradio
-sdk_version: 4.44.0
+title: HR_Policy_Assistant
 app_file: app.py
-pinned: false
+sdk: gradio
+sdk_version: 6.15.2
 ---
 
 # 🤖 HR Policy Assistant — ABC Corporation
