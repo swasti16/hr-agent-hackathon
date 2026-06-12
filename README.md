@@ -1,10 +1,3 @@
----
-title: HR_Policy_Assistant
-app_file: app.py
-sdk: gradio
-sdk_version: 6.15.2
----
-
 # 🤖 HR Policy Assistant — ABC Corporation
 ### Microsoft Agents League Hackathon · Creative Apps Track
 

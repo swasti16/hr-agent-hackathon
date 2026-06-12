@@ -254,7 +254,7 @@ def get_intent_dataframe():
 def chat(message: str, history_str: str):
     t0 = time.time()
     result = agent.ask(message, history_str)
-    logger.info(f"[CHAT] done in {time.time()-t0:.2f}s", flush=True)
+    logger.info(f"[CHAT] done in {time.time()-t0:.2f}s")
 
     if result.get("shield_triggered"):
         threat = result.get("threat_type", "UNKNOWN")
