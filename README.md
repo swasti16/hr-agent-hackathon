@@ -1,3 +1,14 @@
+---
+title: HR Policy Assistant
+emoji: 🤖
+colorFrom: indigo
+colorTo: cyan
+sdk: gradio
+sdk_version: 4.44.0
+app_file: app.py
+pinned: false
+---
+
 # 🤖 HR Policy Assistant — ABC Corporation
 ### Microsoft Agents League Hackathon · Creative Apps Track
 
