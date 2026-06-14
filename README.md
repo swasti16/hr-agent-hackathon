@@ -18,6 +18,19 @@ HR teams at large organisations spend significant time answering repetitive poli
 
 ---
 
+## 📸 Screenshots
+
+### Chat Interface
+![Chat UI](docs/screenshots/chat_ui.png)
+
+### Quality Dashboard
+![Quality Dashboard](docs/screenshots/quality_dashboard.png)
+
+### Reasoning Chain Debug Panel
+![Debug Panel](docs/screenshots/debug_panel.png)
+
+---
+
 ## 🎬 Demo
 
 [![Demo Video](https://img.shields.io/badge/Watch-Demo-red?logo=youtube)](https://youtu.be/SFR3RisyifY)
