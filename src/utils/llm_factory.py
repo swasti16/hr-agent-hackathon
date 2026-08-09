@@ -3,29 +3,30 @@ Factory functions for LLM, embeddings, and vector store.
 Uses GitHub Models (OpenAI-compatible) as the LLM provider.
 """
 
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
+from src.utils.rate_limited_groq import RateLimitedChatGroq
 from config.settings import settings
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-def get_llm(temperature: float = 0.1) -> ChatOpenAI:
-    return ChatOpenAI(
-        model=settings.GITHUB_MODEL,
-        api_key=settings.GITHUB_TOKEN,
-        base_url=settings.GITHUB_BASE_URL,
+def get_llm(temperature: float = 0.1) -> ChatGroq:
+    return ChatGroq(
+        api_key=settings.PROVIDER_API_KEY,
+        model=settings.GENERATOR_MODEL,
         temperature=temperature
     )
 
 
-def get_judge_llm() -> ChatOpenAI:
-    logger.info("Initializing judge LLM: %s", settings.GITHUB_JUDGE_MODEL)
-    return ChatOpenAI(
-        model=settings.GITHUB_JUDGE_MODEL,
-        api_key=settings.GITHUB_TOKEN,
-        base_url=settings.GITHUB_BASE_URL,
-        temperature=0.0
+def get_judge_llm() -> RateLimitedChatGroq:
+    logger.info("Initializing judge LLM: %s", settings.JUDGE_MODEL)
+    return RateLimitedChatGroq(
+        api_key=settings.PROVIDER_API_KEY,
+        model=settings.JUDGE_MODEL,
+        temperature=0.0,
+        delay_seconds=3.0,
+        request_timeout=900.0
     )
 
 
@@ -53,4 +54,4 @@ def get_vector_store(collection_name: str | None = None,
 
 
 def get_llm_provider_name() -> str:
-    return "GITHUB"
+    return settings.LLM_PROVIDER.upper()

@@ -21,10 +21,14 @@ logging.getLogger("httpcore").setLevel(logging.CRITICAL)
 class Settings:
 
     # ======== GitHub Models ==================================
-    GITHUB_TOKEN: str = os.getenv("GITHUB_TOKEN", "")
-    GITHUB_MODEL: str = "gpt-4o-mini"   # "gpt-4o-mini" or "gpt-4.1-mini" or "mistral-small-2503"
-    GITHUB_JUDGE_MODEL: str = "gpt-4.1-mini"   # "gpt-4o-mini" or "gpt-4.1-mini"
-    GITHUB_BASE_URL: str = "https://models.inference.ai.azure.com"
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_JUDGE_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+
+    LLM_PROVIDER = os.getenv("LLM_PROVIDER", "GROQ")
+    PROVIDER_API_KEY = GROQ_API_KEY
+    GENERATOR_MODEL = GROQ_MODEL
+    JUDGE_MODEL = GROQ_JUDGE_MODEL
 
     # ======== Embedding Settings ==================================
     EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
@@ -49,13 +53,8 @@ class Settings:
     CONFIDENCE_THRESHOLD: float = 0.70
 
     def validate(self) -> None:
-        assert self.GITHUB_TOKEN, "GITHUB_TOKEN not set in .env"
+        assert self.PROVIDER_API_KEY, "PROVIDER_API_KEY not set in .env"
 
 
 settings = Settings()
-log_level = getattr(logging, settings.LOG_LEVEL, logging.ERROR)
-logging.basicConfig(
-    level=log_level,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-)
-logging.getLogger().setLevel(log_level)
+logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL, logging.ERROR))

@@ -121,9 +121,15 @@ class HRAgent:
                 "threat_type": None,
             }
 
-        # ======== Step 3: Intent Classification ========
+        # ======== Step 3: Intent Classification + Query Resolution ========
         # Use sanitized_query so redacted PII doesn't confuse the classifier.
-        intents = classify_intent(shield.sanitized_query, history_str)
+        # classify_intent() now also resolves follow-ups into standalone
+        # queries and signals topic continuity — see intent_classifier.py.
+        classification_result = classify_intent(shield.sanitized_query, history_str)
+        intents = classification_result["intents"]
+        resolved_query = classification_result["resolved_query"]
+        topic_continues = classification_result["topic_continues"]
+
         with _stats_lock:
             for intent in intents:
                 session_stats["intent_counts"][intent] = session_stats["intent_counts"].get(intent, 0) + 1
@@ -163,24 +169,22 @@ class HRAgent:
                 "threat_type": None,
             }
 
-        # ======== Step 4: Build Retrieval Query ========
-        # Enrich retrieval query with history for follow-ups.
-        history_list = []
-        for line in history_str.strip().split("\n"):
-            if line.startswith("user: "):
-                history_list.append({"role": "user", "content": line[6:]})
-            elif line.startswith("assistant: "):
-                history_list.append({"role": "assistant", "content": line[11:]})
+        # ======== Step 4: RAG Retrieval (resolved query, no history needed) ========
+        # resolved_query already has pronouns/ellipsis resolved by the
+        # classifier above, so retrieval doesn't need raw history at all.
+        rag_result = self.pipeline.retrieve(resolved_query)
 
-        # ======== Step 5: RAG Retrieval ========
-        rag_result = self.pipeline.ask_with_history(shield.sanitized_query, history_list)
+        # ======== Step 5: Reasoning + Response Generation ========
+        # If topic_continues is False, drop history from generation too —
+        # prevents stale context (e.g. previous answer's numbers) bleeding
+        # into a response about an unrelated subject.
+        generation_history = history_str if topic_continues else ""
 
-        # ======== Step 6: Reasoning + Response Generation ========
         response = reason_and_respond(
-            query=shield.sanitized_query,
+            query=resolved_query,
             intents=intents,
             context="\n".join(rag_result["contexts"]),
-            history_str=history_str,
+            history_str=generation_history,
         )
 
         return {

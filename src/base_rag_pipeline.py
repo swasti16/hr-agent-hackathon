@@ -187,6 +187,10 @@ class RagPipeline:
         enriched_question = f"{conversation_context}\n{question}" \
             if conversation_context else question
 
+        logger.info(
+            "Complete Query with history: %s", enriched_question
+        )
+
         # Get answer using enriched question for retrieval
         answer = self.chain.invoke(enriched_question)
 
@@ -204,6 +208,29 @@ class RagPipeline:
             "answer": answer,
             "contexts": contexts,
             "sources": sources
+        }
+
+    def retrieve(self, resolved_query: str) -> dict:
+        """
+        Retrieve top-k chunks for an already-resolved standalone query.
+        No LLM call — retrieval only. Use this instead of ask_with_history()
+        when the caller (e.g. HRAgent) already has a resolved query and
+        will generate the answer itself via a separate reasoning step.
+
+        Args:
+            resolved_query: Standalone query (pronouns/ellipsis already
+                             resolved against history by classify_intent()).
+
+        Returns:
+            {"contexts": list[str], "sources": list[str]}
+        """
+        retrieved_docs = self.retriever.invoke(resolved_query)
+        return {
+            "contexts": [doc.page_content for doc in retrieved_docs],
+            "sources": [
+                doc.metadata.get("source", "unknown")
+                for doc in retrieved_docs
+            ]
         }
 
     def ask(self, question: str) -> dict:

@@ -1,8 +1,18 @@
 """
-Intent Classifier — LLM-based query intent detection.
+Intent Classifier — LLM-based query intent detection, query resolution,
+and topic-switch detection in a single call.
 
-Classifies user queries into one or more of the supported HR intents.
-Called after the Safety Shield has cleared the query.
+Classifies user queries into one or more supported HR intents, rewrites
+follow-up questions into standalone queries for retrieval, and signals
+whether the current query continues the prior topic or starts a new one.
+
+Consolidated into one call (previously would have needed a separate
+embedding-similarity gate for topic-switch — see git history, that
+approach was validated against real query pairs and rejected: short
+elliptical follow-ups like "What about paternity?" don't carry enough
+signal for cosine similarity to separate same-topic from switched-topic
+reliably). LLM-based judgment handles short-text reference resolution
+better than embeddings do.
 
 Supported intents:
     LEAVE_QUERY    — leave, holidays, sick days, maternity, paternity
@@ -17,35 +27,69 @@ from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from src.utils.llm_factory import get_llm
 import logging
-import re
-from typing import List
+import json
+from typing import TypedDict, List
 
 logger = logging.getLogger(__name__)
 
 # NOTE: If you add a new intent here, also add it to the VALID_INTENTS set
 # below and update classify_intent()'s fallback logic.
 INTENT_PROMPT = PromptTemplate.from_template("""
-You are an HR assistant intent classifier.
-Classify the user query with history into ONE OR MORE of these intents:
-- LEAVE_QUERY: questions about leave, holidays, sick days, maternity, paternity, compensatory leave, comp-off, CL
-- DISCIPLINARY: questions about violations, warnings, termination, misconduct
-- RESIGNATION: questions about notice period, resignation process, exit
-- SHIFT_QUERY: questions about shift timings, night shift, weekend shift allowances
-- GREETING: strictly greetings, farewells, and small talk (e.g. "hello", "how are you?", "goodbye")
-- OUT_OF_SCOPE: anything not related to HR policies
+You are an HR assistant query analyzer. Given conversation history and the
+current query, produce a JSON object with FOUR fields.
 
-Rules:
-- Return comma-separated labels if multiple intents apply
-- If OUT_OF_SCOPE, return only OUT_OF_SCOPE
-- No explanation, only labels
+<INTENTS>
+- LEAVE_QUERY: leave, holidays, sick days, maternity, paternity, comp-off, CL
+- DISCIPLINARY: violations, warnings, termination, misconduct
+- RESIGNATION: notice period, resignation process, exit
+- SHIFT_QUERY: shift timings, night shift, weekend shift allowances
+- GREETING: strictly greetings, farewells, small talk
+- OUT_OF_SCOPE: anything not related to HR policies
+</INTENTS>
+
+<FIELD_INSTRUCTIONS>
+1. "intents": array of one or more labels from <INTENTS>. If OUT_OF_SCOPE
+   applies, return ONLY ["OUT_OF_SCOPE"].
+
+2. "resolved_query": Rewrite the CURRENT QUERY into a fully standalone
+   question by resolving pronouns, ellipsis, and implicit references
+   using the conversation history. This will be used for document
+   retrieval, so it must contain the actual topic keywords.
+   - If the current query is already standalone (no pronouns/ellipsis
+     referring to history), return it unchanged.
+   - If there is no history, return the current query unchanged.
+   Examples:
+     History: "user: What is the maternity leave policy?"
+     Query: "What about paternity?"
+     resolved_query: "What is the paternity leave policy?"
+
+     History: "user: What is the notice period?"
+     Query: "Can I take leaves during it?"
+     resolved_query: "Can I take leaves during the notice period?"
+
+3. "topic_continues": true if the current query is a follow-up to the
+   SAME subject as the most recent history turn (even if asking about a
+   related-but-different policy, e.g. maternity -> paternity counts as
+   continuing). false if the current query starts an unrelated subject,
+   or if there is no history yet.
+
+4. "reason": one line explaining the resolved_query and topic_continues
+   decisions.
+</FIELD_INSTRUCTIONS>
 
 Conversation History: {history}
-Query: {query}
-Respond with intent labels only. No examples, no extra text.
-Intents:""")
+Current Query: {query}
+
+Respond ONLY with valid JSON, no extra text, no markdown fences:
+{{
+  "intents": ["..."],
+  "resolved_query": "...",
+  "topic_continues": true/false,
+  "reason": "..."
+}}
+""")
 
 # Allowlist of valid intent labels. Any LLM output not in this set is dropped.
-# If all labels are invalid, falls back to OUT_OF_SCOPE.
 _VALID_INTENTS = {
     "LEAVE_QUERY",
     "DISCIPLINARY",
@@ -56,41 +100,82 @@ _VALID_INTENTS = {
 }
 
 
-def classify_intent(query: str, history_str: str = "") -> List[str]:
+class IntentResult(TypedDict):
+    intents: List[str]
+    resolved_query: str
+    topic_continues: bool
+    reason: str
+
+
+def _fallback_result(query: str, raw_output: str = "") -> IntentResult:
     """
-    Classify query into one or more intent labels using the LLM.
+    Conservative fallback when JSON parsing fails: treat as out-of-scope,
+    keep the query unresolved (retrieval will just use the raw query,
+    same behavior as before this change), and assume topic continues
+    (safer than dropping potentially-relevant history on a parse error).
+    """
+    logger.warning(
+        "[IntentClassifier] JSON parse failed. Raw output: %r", raw_output
+    )
+    return {
+        "intents": ["OUT_OF_SCOPE"],
+        "resolved_query": query,
+        "topic_continues": True,
+        "reason": "Classification failed — fallback applied",
+    }
+
+
+def classify_intent(query: str, history_str: str = "") -> IntentResult:
+    """
+    Classify query intent, resolve it into a standalone query for
+    retrieval, and detect whether the topic continues from history.
 
     Args:
         query:       Sanitized user query (PII already redacted by shield).
-        history_str: Conversation history as plain text for context.
-                     Pass empty string if no history.
+        history_str: Conversation history as plain text. Pass "" if none.
 
     Returns:
-        List of valid intent label strings. Never empty — falls back to
-        ["OUT_OF_SCOPE"] if LLM returns unrecognised labels.
-
-    Note:
-        history_str was previously typed as Optional[str] but the prompt
-        always expects a string. Callers should pass "" not None.
-        Fixed: changed default and guard to use "" consistently.
+        IntentResult dict with keys: intents, resolved_query,
+        topic_continues, reason. Falls back to _fallback_result() on
+        JSON parse failure — never raises.
     """
     llm = get_llm()
     chain = INTENT_PROMPT | llm | StrOutputParser()
 
-    # history_str guaranteed str here; None guard kept for safety
     result = chain.invoke({"query": query, "history": history_str})
 
-    # Strip backticks and whitespace; LLM sometimes wraps output in ` `
-    intents = [i.strip().strip("`").upper() for i in re.split(r"[,|]", result)]
+    try:
+        cleaned = result.strip()
+        cleaned = (
+            cleaned.removesuffix("```")
+            .removeprefix("```json")
+            .removeprefix("```")
+            .strip()
+        )
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError:
+        return _fallback_result(query, result)
 
-    valid_intents = [i for i in intents if i in _VALID_INTENTS]
+    raw_intents = parsed.get("intents", [])
+    valid_intents = [
+        i.strip().upper() for i in raw_intents
+        if isinstance(i, str) and i.strip().upper() in _VALID_INTENTS
+    ]
+    if not valid_intents:
+        valid_intents = ["OUT_OF_SCOPE"]
 
-    # Debug trace — remove or guard with a DEBUG flag before production
+    resolved_query = parsed.get("resolved_query") or query
+    topic_continues = bool(parsed.get("topic_continues", True))
+    reason = parsed.get("reason", "")
+
     logger.info(
-        "[IntentClassifier] Raw: %r Parsed: %s",
-        result,
-        valid_intents,
+        "[IntentClassifier] intents=%s resolved_query=%r topic_continues=%s",
+        valid_intents, resolved_query, topic_continues,
     )
 
-    # Fallback: if LLM returned nothing recognisable, treat as out-of-scope
-    return valid_intents or ["OUT_OF_SCOPE"]
+    return {
+        "intents": valid_intents,
+        "resolved_query": resolved_query,
+        "topic_continues": topic_continues,
+        "reason": reason,
+    }
