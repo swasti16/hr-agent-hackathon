@@ -15,6 +15,8 @@ from src.utils.llm_factory import get_llm
 import logging
 import json
 from datetime import date
+from src.utils.latency_logger import timed_stage
+
 
 logger = logging.getLogger(__name__)
 
@@ -216,7 +218,10 @@ def reason_and_respond(
         phrase-matching stage (e.g. paraphrased role-hijack attempts).
     """
     llm = get_llm()
-    classification = classify_query(query, context, llm)
+    timings = {}
+
+    with timed_stage("reasoning_classify", timings):
+        classification = classify_query(query, context, llm)
 
     #  Guard: semantic injection (not caught by phrase-matching shield)
     #  Defense-in-depth: safety_shield.py catches known injection patterns via
@@ -229,7 +234,8 @@ def reason_and_respond(
             "threat_type": "INJECTION",
             "reason": classification["reason"],
             "needs_personal_data": classification["needs_personal_data"],
-            "context_sufficient": classification["context_sufficient"]
+            "context_sufficient": classification["context_sufficient"],
+            "timings": timings,
         }
 
     # ======== Guard: query requires personal employee DB data ========
@@ -243,7 +249,8 @@ def reason_and_respond(
             "threat_type": None,
             "reason": classification["reason"],
             "needs_personal_data": True,
-            "context_sufficient": classification["context_sufficient"]
+            "context_sufficient": classification["context_sufficient"],
+            "timings": timings,
         }
 
     # ======== Guard: retrieved context does not cover this question ========
@@ -255,17 +262,19 @@ def reason_and_respond(
             "reason": classification["reason"],
             "needs_personal_data": classification["needs_personal_data"],
             "context_sufficient": False,
+            "timings": timings,
         }
 
     # ======== Generate grounded answer ========
-    chain = REASONING_PROMPT | llm | StrOutputParser()
-    answer = chain.invoke({
-        "query": query,
-        "intents": ", ".join(intents),
-        "context": context,
-        "history": history_str,
-        "today": date.today().strftime("%B %d, %Y"),
-    })
+    with timed_stage("reasoning_generate", timings):
+        chain = REASONING_PROMPT | llm | StrOutputParser()
+        answer = chain.invoke({
+            "query": query,
+            "intents": ", ".join(intents),
+            "context": context,
+            "history": history_str,
+            "today": date.today().strftime("%B %d, %Y"),
+        })
     logger.info("[ReasonAndRespond] Generated answer: %r", answer)
 
     return {
@@ -275,4 +284,5 @@ def reason_and_respond(
         "reason": classification["reason"],
         "needs_personal_data": classification["needs_personal_data"],
         "context_sufficient": classification["context_sufficient"],
+        "timings": timings,
     }

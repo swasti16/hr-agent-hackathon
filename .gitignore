@@ -5,6 +5,9 @@
 venv/
 .venv/
 
+# csv files
+reports/*.csv
+
 # Python cache
 __pycache__/
 *.pyc
