@@ -22,13 +22,15 @@ class Settings:
 
     # ======== GitHub Models ==================================
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
-    GROQ_JUDGE_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
+    GROQ_JUDGE_MODEL: str = "openai/gpt-oss-120b"
+    GROQ_INTENT_MODEL: str = "openai/gpt-oss-20b"
 
     LLM_PROVIDER = os.getenv("LLM_PROVIDER", "GROQ")
     PROVIDER_API_KEY = GROQ_API_KEY
     GENERATOR_MODEL = GROQ_MODEL
     JUDGE_MODEL = GROQ_JUDGE_MODEL
+    INTENT_MODEL = GROQ_INTENT_MODEL
 
     # ======== Embedding Settings ==================================
     EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")

@@ -25,7 +25,7 @@ Supported intents:
 
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from src.utils.llm_factory import get_llm
+from src.utils.llm_factory import get_intent_llm
 import logging
 import json
 from typing import TypedDict, List
@@ -139,7 +139,7 @@ def classify_intent(query: str, history_str: str = "") -> IntentResult:
         topic_continues, reason. Falls back to _fallback_result() on
         JSON parse failure — never raises.
     """
-    llm = get_llm()
+    llm = get_intent_llm()
     chain = INTENT_PROMPT | llm | StrOutputParser()
 
     result = chain.invoke({"query": query, "history": history_str})

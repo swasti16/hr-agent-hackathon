@@ -30,6 +30,14 @@ def get_judge_llm() -> RateLimitedChatGroq:
     )
 
 
+def get_intent_llm(temperature: float = 0.0) -> ChatGroq:
+    return ChatGroq(
+        api_key=settings.PROVIDER_API_KEY,
+        model=settings.INTENT_MODEL,
+        temperature=temperature
+    )
+
+
 def get_embeddings():
     from langchain_huggingface import HuggingFaceEmbeddings
     return HuggingFaceEmbeddings(
